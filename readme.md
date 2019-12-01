@@ -2,16 +2,13 @@
 
 ## a fast, minimal and strongly-typed programming language
 
-i'm 90% sure that you won't like this
-
-here's an example of hello world in it
-
 ```snowflake
-* this is a comment
-fn main() {
+** this is a comment
+let main =>
+	** printing is done through a macro, like rust
+	*println "hello world"
 
-  * there is no print statement
-  stdout <- "hello world" <- newline
-  
-}
+	** underneath the hood, printing is done like this
+	<stdout handle> <- "hello world" <- "\n"
 ```
+
