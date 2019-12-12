@@ -1,7 +1,7 @@
 # snowflake
 
-a fast, minimal and strongly-typed programming language. does not exist yet,
-only a concept for now
+a fast, minimal and strongly-typed lisp dialect where the core library is a
+general purpose "dsl" that looks like an ml descendant
 
 ## experimental notice
 
@@ -25,7 +25,7 @@ let main =>
 
 ```snowflake
 ** pretend that io stuff is imported
-let question = prompt: &str, valid: [&str] =>
+let question = prompt: &str, valid: [&str] => **[ the stuff beforehand is just a loose approximation ]**
 	let =>
 		input: String, ** this should automatically be initialized to the default value
 		joined_valid = (valid.join ", "),
@@ -33,15 +33,30 @@ let question = prompt: &str, valid: [&str] =>
 	_ =>
 		*println prompt
 		if valid.length != 0 =>
-			*print "(", joined_valid, ")"
+			*print "(" joined_valid ")"
 		*print ": "
 
 	** TODO: finish
+```
 
-		
+this translates (roughly, the lisp dialect's syntax isn't fully designed yet) to
+the following
 
-		
+```
+** pretend that io stuff is imported
+(let question (Block:*new ((prompt :&str) (valid :[&str])) **[ the stuff beforehand is a loose approximation of what it may be ]**
+	(let
+		(input :String) ** this will be initialized to the default value
+		(joined_valid :String (valid.join ", ")) ** because of transpilation, the type will be deambiguated
+		(reader :io:Reader io:Reader:new))
+	(let Block:*new
+		(*println prompt)
+		(if (not (valid.length.eq 0)) (Block:*new
+			(*print "(" joined_valid ")")))
+		(*print ": "))
 
+	** TODO: finish
+	))
 ```
 
 ## features

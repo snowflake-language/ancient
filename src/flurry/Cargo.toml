@@ -1,0 +1,9 @@
+[package]
+name = "flurry"
+description = "the main compiler interface for snowflake"
+version = "0.1.0"
+authors = ["superwhiskers <whiskerdev@protonmail.com>"]
+edition = "2018"
+
+[dependencies]
+snowflake = { path = "../snowflake"
