@@ -66,3 +66,6 @@ the following
 - heavily abstractable (operator overloading, traits (potentially), declarative macros, procedural macros, [**type macros**](#type-macros))
 - fast (to program in *and* during runtime)
 
+## repositories
+
+- [spec](https://github.com/snowflake-language/spec) - the (more formal) specification

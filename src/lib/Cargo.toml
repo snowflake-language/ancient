@@ -1,8 +1,0 @@
-[package]
-name = "snowflake"
-description = "a low-level general purpose programming language made for speed, flexibility, and maintainability"
-version = "0.0.1"
-authors = ["superwhiskers <whiskerdev@protonmail.com>"]
-edition = "2018"
-
-[dependencies]
