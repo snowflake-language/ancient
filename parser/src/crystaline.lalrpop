@@ -1,0 +1,179 @@
+// note(@bree): no decendents of ast should be "use"d
+// to preserve a visual separation between parsing and ast  
+use crate::ast;
+use crate::token::Token;
+use crate::indentation::IndentationLevel;
+use lalrpop_util::ParseError;
+use num_bigint::BigInt;
+
+grammar(indentation: &mut IndentationLevel);
+
+pub Statement: ast::Statement = {
+    FnDecl
+}
+
+pub FnDecl: ast::Statement = {
+    <name:Identifier> <args:Identifier*> "=>" <body:Block> => ast::Statement::FnDecl {
+        name: name,
+        args: args,
+        body: body
+    },
+    <name:Identifier> <args:Identifier*> "=>" <body:Expression> => ast::Statement::FnDecl {
+        name: name,
+        args: args,
+        body: vec![Box::new(body)]
+    }
+}
+
+// (Main)Expression and SubExpression are a solution to remove abiguity issues with FnCall
+// for exampe: "add a b" could be seen as able to be parsed multiple ways { add(a, b) or add(a(b)) }
+// what this means is that FnCall can't directly have another FnCall in it without some other enclosure.
+pub Expression: ast::Expression = {
+    SubExpression,
+    FnCall,
+}
+
+pub SubExpression: ast::Expression = {
+    "(" <e:Expression> ")" => e,
+    OpCall,
+}
+
+
+pub Block: Vec<Box<ast::Expression>> = {
+    Indent <expr:Expression> <exprs:(Newline Expression)*> Dedent => {
+        let mut out = vec![Box::new(expr)];
+        for e in exprs {
+            out.push(Box::new(e.1));
+        };
+        out
+    }
+}
+
+pub OpCall: ast::Expression = {
+    <l:Atom> <op:Op> <r:OpCall> => ast::Expression::OpCall {
+        op: op,
+        args: vec![
+            Box::new(l),
+            Box::new(r),
+        ]
+    },
+    Atom
+}
+
+// note(@bree): possibly future use, may remove.
+pub Atom: ast::Expression = {
+    Literal,
+}
+
+// FnCall has a rather ambiguous grammar
+// any change to the grammer has a possibility of conflicting with FnCall
+pub FnCall: ast::Expression = {
+    <name:Identifier> <args:SubExpression+> => ast::Expression::FnCall {
+        name: name,
+        args: args
+    }
+}
+
+pub Op: ast::OpSymbol = {
+  "+" => ast::OpSymbol::Plus,
+  "-" => ast::OpSymbol::Minus,
+  "*" => ast::OpSymbol::Star,
+  "/" => ast::OpSymbol::ForwardSlash
+}
+
+pub Literal: ast::Expression = {
+  Integer => ast::Expression::Integer(<>),
+  Identifier => ast::Expression::Identifier(<>)
+}
+
+pub Integer: BigInt = {
+  "Integer"
+}
+
+pub Identifier: String = {
+  "Identifier"
+}
+
+// todo(@bree): make these smaller, potentially adding functionality to the indentation module
+Indent: () = {
+    "Indentation" =>? {
+        if <> > indentation.level() {
+            indentation.update(<>);
+            Ok(())
+        } else {
+            Err(
+                ParseError::User {
+                    error: format!(
+                        "Expected an Indent with an indentation higher than {}; instead found an indentation of {}",
+                        indentation.level(),
+                        <>
+                    )
+                }
+            )
+        }
+    }
+};
+
+Dedent: () = {
+    "Indentation" =>? {
+        if <> < indentation.level() {
+            indentation.update(<>);
+            Ok(())
+        } else {
+            Err(
+                ParseError::User {
+                    error: format!(
+                        "Expected a Dedent with an indentation lower than {}; instead found an indentation of {}",
+                        indentation.level(),
+                        <>
+                    )
+                }
+            )
+        }
+    }
+};
+
+Newline: () = {
+    "Indentation" =>? {
+        if <> == indentation.level() {
+            Ok(())
+        } else {
+            Err(
+                ParseError::User {
+                    error: format!(
+                        "Expected a Newline with an indentation of {}; instead found an indentation of {}",
+                        indentation.level(),
+                        <>
+                    )
+                }
+            )
+        }
+    }
+};
+
+extern {
+    type Location = usize;
+    type Error = String;
+
+    enum Token {
+        "Identifier" => Token::Identifier(<String>),
+        "Float" => Token::Float(<f64>),
+        "Integer" => Token::Integer(<BigInt>),
+        "Indentation" => Token::Indentation(<usize>),
+        "=" => Token::Equal,
+        "::" => Token::ColonColon,
+        "**" => Token::StarStar,
+        "=>" => Token::LargeArrowRight,
+        "->" => Token::SmallArrowRight,
+        "Whitespace" => Token::Whitespace,
+        "Symbol" => Token::Symbol(<char>),
+        "Unknown" => Token::Unknown,
+        // symbols
+        "(" => Token::Symbol('('),
+        ")" => Token::Symbol(')'),
+        "+" => Token::Symbol('+'),
+        "-" => Token::Symbol('-'),
+        "*" => Token::Symbol('*'),
+        "/" => Token::Symbol('/')
+    }
+}
