@@ -1,16 +1,43 @@
-# snowflake
+<p align="center">
+  <img align="center" src="https://github.com/Multimegamander/snowflake/blob/master/banner.jpg?raw=true" alt="banner">
+</p>
 
-a fast, minimal and strongly-typed lisp dialect where the core library is a
-general purpose "dsl" that looks like an ml descendant
+<h2 align="center">a fast, minimal and strongly-typed lisp dialect where the core library is a
+general purpose "dsl" that looks like an ml descendant 
+</h2>
 
-## experimental notice
+<p align="center">
+	Made with :heart: and :coffee: by <a href="https://github.com/snowflake-language/snowflake/graphs/contributors">these</a> lovely people!
+</p>
+
+## 📖 Table of Contents
+* [About the Project](#about-the-project)
+  * [Built With](#built-with)
+* [Usage](#usage)
+  * [Experimental Notice](#experimental-notice)
+  * [Hello, World!](#hello-world)
+  * [Question Implementation](#potential-implementation-of-question)
+  * [Features](#features)
+* [Roadmap](#roadmap)
+* [Contributing](#contributing)
+* [License](#license)
+* [Contact](#contact)
+* [Repositories](#repositories)
+
+## 🤔 About the Project
+
+### 🔨 Built With
+
+## 💡 Usage
+
+## 🧪 Experimental Notice
 
 for now, a lot of the syntax is entirely fluid and **can change at any moment**.
 do not expect something that you made as an example of the language's features to
 actually work once a compiler is made
 
-## hello, world!
-
+### 👋 Hello, World!
+ 
 ```snowflake
 ** this is a comment
 let main =>
@@ -21,7 +48,7 @@ let main =>
 	<stdout handle> <- "hello world" <- "\n"
 ```
 
-## potential implementation of [question()](https://github.com/superwhiskers/question)
+### ❓ Potential Implementation of [Question()](https://github.com/superwhiskers/question)
 
 ```snowflake
 ** pretend that io stuff is imported
@@ -59,13 +86,23 @@ the following
 	))
 ```
 
-## features
+### 🌟 Features
 
 - low-level (relative to other languages) but with the syntax of a high level language
 - mostly functional in terms of paradigm
 - heavily abstractable (operator overloading, traits (potentially), declarative macros, procedural macros, [**type macros**](#type-macros))
 - fast (to program in *and* during runtime)
 
-## repositories
+## 🚧 Roadmap
+
+## 🤷 Contributing
+
+We are always open to contributions! If you want to help, be sure to look at the [Contributing.md](https://github.com/snowflake-language/snowflake/blob/master/Contributing.md)
+
+## 🖊️ License
+
+## 💬 Contact
+
+## 🎁 Repositories
 
 - [spec](https://github.com/snowflake-language/spec) - the (more formal) specification
