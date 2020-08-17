@@ -1,3 +1,12 @@
+//
+// parser - snowflake's parser
+//
+// copyright (c) 2020 the snowflake authors <whiskerdev@protonmail.com>
+// this source code form is subject to the terms of the mozilla public
+// license, v. 2.0. if a copy of the mpl was not distributed with this
+// file, you can obtain one at http://mozilla.org/MPL/2.0/.
+//
+
 #[macro_use]
 extern crate lalrpop_util;
 use logos::Logos;
@@ -7,8 +16,7 @@ pub mod token;
 
 use token::Token;
 
-// maybe better name
-lalrpop_mod!(pub crystaline);
+lalrpop_mod!(pub snowflake);
 
 pub type Spanned<Tok, Loc, Error> = Result<(Loc, Tok, Loc), Error>;
 pub type Item = Spanned<Token, usize, String>;
@@ -27,7 +35,7 @@ pub fn parse<'a>(
         .map(spanned_token_into_item);
     let mut indentation = indentation::IndentationLevel::new();
     // todo: make into ProgramParser
-    crystaline::StatementParser::new().parse(&mut indentation, input)
+    snowflake::StatementParser::new().parse(&mut indentation, input)
 }
 
 #[cfg(test)]
@@ -36,7 +44,7 @@ mod test {
     use ast;
     use ast::Expression;
     use ast::Statement;
-    use crystaline::*;
+    use snowflake::*;
     use num_bigint::BigInt;
 
     impl From<isize> for ast::Expression {

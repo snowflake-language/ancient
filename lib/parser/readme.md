@@ -1,6 +1,4 @@
-# Crystaline
-
-> snowflakes parser
+# parser
 
 This directory has code for lexing, parsing, and ast.
 
