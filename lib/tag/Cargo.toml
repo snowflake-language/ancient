@@ -1,0 +1,10 @@
+[package]
+name = "tag"
+version = "0.1.0"
+authors = ["the snowflake authors <whiskerdev@protonmail.com>"]
+edition = "2018"
+license = "MPL-2.0"
+
+[dependencies]
+id-arena = "^2"
+sdset = "^0.4"
