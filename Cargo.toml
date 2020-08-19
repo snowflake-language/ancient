@@ -1,5 +1,14 @@
+[package]
+name = "snowflake"
+version = "0.1.0"
+author = "the snowflake authors"
+
 [workspace]
 members = [
   "lib/parser",
   "lib/tag",
 ]
+
+[dependencies]
+parser = { path = "lib/parser" }
+tag = { path = "lib/tag" }
