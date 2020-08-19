@@ -2,4 +2,6 @@
 members = [
   "lib/parser",
   "lib/tag",
+
+  "bin/flurry",
 ]
