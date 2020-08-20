@@ -11,8 +11,6 @@
 // to preserve a visual separation between parsing and ast  
 use crate::ast;
 use crate::token::Token;
-use crate::indentation::IndentationLevel;
-use lalrpop_util::ParseError;
 use num_bigint::BigInt;
 
 grammar;

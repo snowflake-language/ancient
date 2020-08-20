@@ -7,7 +7,6 @@
 // file, you can obtain one at http://mozilla.org/MPL/2.0/.
 //
 
-
 #[derive(Debug, Clone, PartialEq)]
 pub enum Indentation {
     Indent,
@@ -34,7 +33,7 @@ impl IndentationLevel {
             self.stack.push(level);
             Indentation::Indent
         } else if level < self.level() {
-            while self.stack.pop().unwrap_or(0) <= level {};
+            while self.stack.pop().unwrap_or(0) <= level {}
             self.stack.push(level);
             Indentation::Dedent
         } else {

@@ -58,7 +58,7 @@ pub enum Token {
     // inserted tokens
     Newline,
     Indent,
-    Dedent
+    Dedent,
 }
 
 #[cfg(test)]

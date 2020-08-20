@@ -11,8 +11,8 @@
 extern crate lalrpop_util;
 pub mod ast;
 pub mod indentation;
-pub mod token;
 pub mod lexer;
+pub mod token;
 
 lalrpop_mod!(pub snowflake);
 
