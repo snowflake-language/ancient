@@ -296,56 +296,98 @@ mod test {
         }
     }
 
-    // #[test]
-    // fn parse_program() {
-    //     let type_decl_input = indoc! {"
-    //         fib :: isize -> isize
-    //     "};
+    #[test]
+    fn parse_program() {
+        let type_decl_input = indoc! {"
+            fib :: isize -> isize
+        "};
 
-    //     let fn_decl_input = indoc! {"
-    //         fib n =>
-    //             (fib n - 1) + (fib n - 2)
-    //     "};
+        // todo: add end of input newline/dedent insertions for situations like this.
+        // todo: add a way to match n
+        let fn_decl_input = indoc! {"
+            fib n =>
+                (fib n - 1) + (fib n - 2)
+            
+        "};
 
-    //     test_parse! {
-    //         ProgramParser where
-    //         "" => vec![],
-    //         type_decl_input => vec![
-    //             Statement::TypeDecl {
-    //                 name: "fib".into(),
-    //                 body: Type::FnSig {
-    //                     args: vec![
-    //                         Box::new("isize".into())
-    //                     ],
-    //                     ret: Box::new("isize".into())
-    //                 }
-    //             }
-    //         ],
-    //         fn_decl_input => vec![
-    //             Statement::FnDecl {
-    //                 name: "fib".into(),
-    //                 args: vec!["n".into()],
-    //                 body: vec![
-    //                     Box::new(ops(
-    //                         Expression::FnCall {
-    //                             name: "fib".into(),
-    //                             args: vec![
-    //                                 ops("n", OpSymbol::Minus, 1)
-    //                             ]
-    //                         },
-    //                         OpSymbol::Plus,
-    //                         Expression::FnCall {
-    //                             name: "fib".into(),
-    //                             args: vec![
-    //                                 ops("n", OpSymbol::Minus, 2)
-    //                             ]
-    //                         },
-    //                     ))
-    //                 ]
-    //             }
-    //         ]
-    //     }
-    // }
+        let full_input = indoc! {"
+            fib :: isize -> isize
+            fib n =>
+                (fib n - 1) + (fib n - 2)
+
+        "};
+
+        test_parse! {
+            ProgramParser where
+            "" => vec![],
+            type_decl_input => vec![
+                Statement::TypeDecl {
+                    name: "fib".into(),
+                    body: Type::FnSig {
+                        args: vec![
+                            Box::new("isize".into())
+                        ],
+                        ret: Box::new("isize".into())
+                    }
+                }
+            ],
+            fn_decl_input => vec![
+                Statement::FnDecl {
+                    name: "fib".into(),
+                    args: vec!["n".into()],
+                    body: vec![
+                        Box::new(Statement::Expression(ops(
+                            Expression::FnCall {
+                                name: "fib".into(),
+                                args: vec![
+                                    ops("n", OpSymbol::Minus, 1)
+                                ]
+                            },
+                            OpSymbol::Plus,
+                            Expression::FnCall {
+                                name: "fib".into(),
+                                args: vec![
+                                    ops("n", OpSymbol::Minus, 2)
+                                ]
+                            },
+                        )))
+                    ]
+                }
+            ],
+            full_input => vec![
+                Statement::TypeDecl {
+                    name: "fib".into(),
+                    body: Type::FnSig {
+                        args: vec![
+                            Box::new("isize".into())
+                        ],
+                        ret: Box::new("isize".into())
+                    }
+                },
+                Statement::FnDecl {
+                    name: "fib".into(),
+                    args: vec!["n".into()],
+                    body: vec![
+                        Box::new(Statement::Expression(ops(
+                            Expression::FnCall {
+                                name: "fib".into(),
+                                args: vec![
+                                    ops("n", OpSymbol::Minus, 1)
+                                ]
+                            },
+                            OpSymbol::Plus,
+                            Expression::FnCall {
+                                name: "fib".into(),
+                                args: vec![
+                                    ops("n", OpSymbol::Minus, 2)
+                                ]
+                            },
+                        )))
+                    ]
+                }
+            ]
+        }
+    }
 
     // TypeExpression tests.
 
