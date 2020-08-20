@@ -17,7 +17,58 @@ use num_bigint::BigInt;
 
 grammar(indentation: &mut IndentationLevel);
 
+// pub Program: Vec<ast::Statement> = {
+//     ProgramLine*
+// }
+
+// pub ProgramLine: ast::Statement = {
+//     Statement,
+//     Newline => vec![]
+// }
+
+// Begin Types
+pub TypeStatement: ast::Statement = {
+    TypeDecl
+}
+
+pub TypeDecl: ast::Statement = {
+    <name:Identifier> "::" <expr:TypeExpression> => ast::Statement::TypeDecl {
+        name: name,
+        body: expr
+    }
+}
+
+pub TypeExpression: ast::Type = {
+    SubTypeExpression,
+    FnSig,
+}
+
+pub SubTypeExpression: ast::Type = {
+    "(" <e:TypeExpression> ")" => e,
+    TypeLiteral
+}
+
+pub FnSig: ast::Type = {
+    <args:SubTypeExpression+> "->" <ret:TypeExpression> => {
+        let mut out_args = vec![];
+        for arg in args {
+            out_args.push(Box::new(arg))
+        };
+        ast::Type::FnSig {
+            args: out_args,
+            ret: Box::new(ret)
+        }
+    }
+}
+
+pub TypeLiteral: ast::Type = {
+    Integer => ast::Type::Nat(<>),
+    Identifier => ast::Type::Identifier(<>),
+}
+// End Types
+
 pub Statement: ast::Statement = {
+    TypeStatement,
     FnDecl
 }
 
@@ -43,7 +94,6 @@ pub Expression: ast::Expression = {
 }
 
 pub SubExpression: ast::Expression = {
-    "(" <e:Expression> ")" => e,
     OpCall,
 }
 
@@ -71,6 +121,7 @@ pub OpCall: ast::Expression = {
 
 // note(@bree): possibly future use, may remove.
 pub Atom: ast::Expression = {
+    "(" <e:Expression> ")" => e,
     Literal,
 }
 

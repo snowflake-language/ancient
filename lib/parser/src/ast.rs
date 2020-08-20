@@ -20,6 +20,20 @@ pub enum Statement {
         args: Vec<String>,
         body: Vec<Box<Expression>>,
     },
+    TypeDecl {
+        name: String,
+        body: Type
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Type {
+    FnSig {
+        args: Vec<Box<Type>>,
+        ret: Box<Type>
+    },
+    Nat(BigInt),
+    Identifier(String)
 }
 
 #[derive(Debug, PartialEq)]
