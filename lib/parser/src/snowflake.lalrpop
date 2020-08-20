@@ -15,16 +15,16 @@ use crate::indentation::IndentationLevel;
 use lalrpop_util::ParseError;
 use num_bigint::BigInt;
 
-grammar(indentation: &mut IndentationLevel);
+grammar;
 
-// pub Program: Vec<ast::Statement> = {
-//     ProgramLine*
-// }
+pub Program: Vec<ast::Statement> = {
+    ProgramLine* => <>.into_iter().flatten().collect()
+}
 
-// pub ProgramLine: ast::Statement = {
-//     Statement,
-//     Newline => vec![]
-// }
+pub ProgramLine: Vec<ast::Statement> = {
+    <s:Statement> "\n" => vec![s],
+    "\n" => vec![]
+}
 
 // Begin Types
 pub TypeStatement: ast::Statement = {
@@ -69,7 +69,8 @@ pub TypeLiteral: ast::Type = {
 
 pub Statement: ast::Statement = {
     TypeStatement,
-    FnDecl
+    FnDecl,
+    // Expression => ast::Statement::Expression(<>)
 }
 
 pub FnDecl: ast::Statement = {
@@ -77,11 +78,6 @@ pub FnDecl: ast::Statement = {
         name: name,
         args: args,
         body: body
-    },
-    <name:Identifier> <args:Identifier*> "=>" <body:Expression> => ast::Statement::FnDecl {
-        name: name,
-        args: args,
-        body: vec![Box::new(body)]
     }
 }
 
@@ -97,15 +93,13 @@ pub SubExpression: ast::Expression = {
     OpCall,
 }
 
+pub Block: Vec<Box<ast::Statement>> = {
+    <s:ExpressionStatement> => vec![s],
+    "\n" Indent <s:ExpressionStatement+> Dedent => s
+}
 
-pub Block: Vec<Box<ast::Expression>> = {
-    Indent <expr:Expression> <exprs:(Newline Expression)*> Dedent => {
-        let mut out = vec![Box::new(expr)];
-        for e in exprs {
-            out.push(Box::new(e.1));
-        };
-        out
-    }
+pub ExpressionStatement: Box<ast::Statement> = {
+    <e:Expression> "\n" => Box::new(ast::Statement::Expression(e))
 }
 
 pub OpCall: ast::Expression = {
@@ -154,63 +148,6 @@ pub Identifier: String = {
   "Identifier"
 }
 
-// todo(@bree): make these smaller, potentially adding functionality to the indentation module
-Indent: () = {
-    "Indentation" =>? {
-        if <> > indentation.level() {
-            indentation.update(<>);
-            Ok(())
-        } else {
-            Err(
-                ParseError::User {
-                    error: format!(
-                        "Expected an Indent with an indentation higher than {}; instead found an indentation of {}",
-                        indentation.level(),
-                        <>
-                    )
-                }
-            )
-        }
-    }
-};
-
-Dedent: () = {
-    "Indentation" =>? {
-        if <> < indentation.level() {
-            indentation.update(<>);
-            Ok(())
-        } else {
-            Err(
-                ParseError::User {
-                    error: format!(
-                        "Expected a Dedent with an indentation lower than {}; instead found an indentation of {}",
-                        indentation.level(),
-                        <>
-                    )
-                }
-            )
-        }
-    }
-};
-
-Newline: () = {
-    "Indentation" =>? {
-        if <> == indentation.level() {
-            Ok(())
-        } else {
-            Err(
-                ParseError::User {
-                    error: format!(
-                        "Expected a Newline with an indentation of {}; instead found an indentation of {}",
-                        indentation.level(),
-                        <>
-                    )
-                }
-            )
-        }
-    }
-};
-
 extern {
     type Location = usize;
     type Error = String;
@@ -219,7 +156,6 @@ extern {
         "Identifier" => Token::Identifier(<String>),
         "Float" => Token::Float(<f64>),
         "Integer" => Token::Integer(<BigInt>),
-        "Indentation" => Token::Indentation(<usize>),
         "=" => Token::Equal,
         "::" => Token::ColonColon,
         "**" => Token::StarStar,
@@ -228,6 +164,10 @@ extern {
         "Whitespace" => Token::Whitespace,
         "Symbol" => Token::Symbol(<char>),
         "Unknown" => Token::Unknown,
+        // indentation
+        Indent => Token::Indent,
+        Dedent => Token::Dedent,
+        "\n" => Token::Newline,
         // symbols
         "(" => Token::Symbol('('),
         ")" => Token::Symbol(')'),

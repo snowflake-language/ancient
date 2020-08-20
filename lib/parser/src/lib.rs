@@ -18,34 +18,28 @@ use token::Token;
 
 lalrpop_mod!(pub snowflake);
 
-pub type Spanned<Tok, Loc, Error> = Result<(Loc, Tok, Loc), Error>;
-pub type Item = Spanned<Token, usize, String>;
-
-fn spanned_token_into_item(span: (Token, logos::Span)) -> Item {
-    let range = span.1;
-    let token = span.0;
-    Ok((range.start, token, range.end))
-}
-
-pub fn parse<'a>(
-    input: &'a str,
-) -> Result<ast::Statement, lalrpop_util::ParseError<usize, token::Token, String>> {
-    let input = token::Token::lexer(input)
-        .spanned()
-        .map(spanned_token_into_item);
-    let mut indentation = indentation::IndentationLevel::new();
-    // todo: make into ProgramParser
-    snowflake::StatementParser::new().parse(&mut indentation, input)
-}
+// pub fn parse<'a>(
+//     input: &'a str,
+// ) -> Result<ast::Statement, lalrpop_util::ParseError<usize, token::Token, String>> {
+//     let input = token::Token::lexer(input)
+//         .spanned()
+//         .map(spanned_token_into_item);
+//     let mut indentation = indentation::IndentationLevel::new();
+//     // todo: make into ProgramParser
+//     snowflake::StatementParser::new().parse(&mut indentation, input)
+// }
 
 #[cfg(test)]
 mod test {
     use super::*;
     use ast;
     use ast::Expression;
+    use ast::OpSymbol;
     use ast::Statement;
-    use snowflake::*;
+    use ast::Type;
+    use indoc::indoc;
     use num_bigint::BigInt;
+    use snowflake::*;
 
     impl From<isize> for ast::Expression {
         fn from(i: isize) -> Self {
@@ -59,19 +53,46 @@ mod test {
         }
     }
 
+    impl From<isize> for ast::Type {
+        fn from(i: isize) -> Self {
+            ast::Type::Nat(BigInt::from(i))
+        }
+    }
+
+    impl<'a> From<&'a str> for ast::Type {
+        fn from(s: &'a str) -> Self {
+            ast::Type::Identifier(String::from(s))
+        }
+    }
+
+    impl From<isize> for ast::Statement {
+        fn from(i: isize) -> Self {
+            ast::Statement::Expression(i.into())
+        }
+    }
+
+    impl<'a> From<&'a str> for ast::Statement {
+        fn from(s: &'a str) -> Self {
+            ast::Statement::Expression(s.into())
+        }
+    }
+
     // test parse for
     macro_rules! test_parse {
         ($path:ty where $($input:expr => $test:expr),*) => {
             $({
-                let input = token::Token::lexer($input).spanned().map(spanned_token_into_item);
-                let mut indentation = indentation::IndentationLevel::new();
-                let program = <$path>::new().parse(&mut indentation, input).unwrap();
+                let input = token::lex($input);
+                let program = <$path>::new().parse(input).unwrap();
                 assert_eq!(program, $test)
             })*
         };
     }
 
-    fn ops(l: impl Into<ast::Expression>, op: ast::OpSymbol, r: impl Into<ast::Expression>) -> ast::Expression {
+    fn ops(
+        l: impl Into<ast::Expression>,
+        op: ast::OpSymbol,
+        r: impl Into<ast::Expression>,
+    ) -> ast::Expression {
         ast::Expression::OpCall {
             op: op,
             args: vec![Box::new(l.into()), Box::new(r.into())],
@@ -155,33 +176,59 @@ mod test {
     fn parse_fn_decl() {
         test_parse! {
             FnDeclParser where
-            "add a b =>\n  a + b\n" => Statement::FnDecl {
-                name: "add".into(),
-                args: vec!["a".into(), "b".into()],
-                body: vec![
-                    Box::new(Expression::OpCall {
-                        op: ast::OpSymbol::Plus,
-                        args: vec![
-                            Box::new("a".into()),
-                            Box::new("b".into())
-                        ]
-                    })
-                ]
-            },
-            "add a b => a + b" => Statement::FnDecl {
+            "add a b => a + b\n" => Statement::FnDecl {
                 name: String::from("add"),
                 args: vec![
                     String::from("a"),
                     String::from("b")
                 ],
                 body: vec![
-                    Box::new(Expression::OpCall {
-                        op: ast::OpSymbol::Plus,
-                        args: vec![
-                            Box::new(Expression::from("a")),
-                            Box::new(ast::Expression::from("b"))
-                        ]
-                    })
+                    Box::new(Statement::Expression(
+                        Expression::OpCall {
+                            op: ast::OpSymbol::Plus,
+                            args: vec![
+                                Box::new(Expression::from("a")),
+                                Box::new(ast::Expression::from("b"))
+                            ]
+                        }
+                    ))
+                ]
+            },
+            "add a b =>\n  a + b\n" => Statement::FnDecl {
+                name: "add".into(),
+                args: vec!["a".into(), "b".into()],
+                body: vec![
+                    Box::new(Statement::Expression(
+                        Expression::OpCall {
+                            op: ast::OpSymbol::Plus,
+                            args: vec![
+                                Box::new("a".into()),
+                                Box::new("b".into())
+                            ]
+                        }
+                    ))
+                ]
+            },
+            "exp a b => (a * a) + (b * b)\n" => Statement::FnDecl {
+                name: "exp".into(),
+                args: vec!["a".into(), "b".into()],
+                body: vec![
+                    Box::new(Statement::Expression(ops(
+                        ops("a", OpSymbol::Star, "a"),
+                        OpSymbol::Plus,
+                        ops("b", OpSymbol::Star, "b")
+                    )))
+                ]
+            },
+            "exp a b =>\n  (a * a) + (b * b)\n" => Statement::FnDecl {
+                name: "exp".into(),
+                args: vec!["a".into(), "b".into()],
+                body: vec![
+                    Box::new(Statement::Expression(ops(
+                        ops("a", OpSymbol::Star, "a"),
+                        OpSymbol::Plus,
+                        ops("b", OpSymbol::Star, "b")
+                    )))
                 ]
             }
         }
@@ -204,6 +251,145 @@ mod test {
                     "a".into(),
                     "b".into(),
                 ]
+            }
+        }
+    }
+
+    #[test]
+    fn parse_expression() {
+        test_parse! {
+            ExpressionParser where
+            "1 + 2" => ops(1, OpSymbol::Plus, 2),
+            "1 + (2 * 3)" => ops(1, OpSymbol::Plus, ops(2, OpSymbol::Star, 3)),
+            "(1 + 2) * 3" => ops(ops(1, OpSymbol::Plus, 2), OpSymbol::Star, 3)
+        }
+    }
+
+    #[test]
+    fn parse_statement() {
+        test_parse! {
+            StatementParser where
+            "add :: int int -> int" => Statement::TypeDecl {
+                name: "add".into(),
+                body: Type::FnSig {
+                    args: vec![
+                        Box::new("int".into()),
+                        Box::new("int".into())
+                    ],
+                    ret: Box::new("int".into())
+                },
+            },
+            "add a b => a + b\n" => Statement::FnDecl {
+                name: String::from("add"),
+                args: vec![
+                    String::from("a"),
+                    String::from("b")
+                ],
+                body: vec![
+                    Box::new(Statement::Expression(Expression::OpCall {
+                        op: ast::OpSymbol::Plus,
+                        args: vec![
+                            Box::new(Expression::from("a")),
+                            Box::new(ast::Expression::from("b"))
+                        ]
+                    }))
+                ]
+            }
+        }
+    }
+
+    // #[test]
+    // fn parse_program() {
+    //     let type_decl_input = indoc! {"
+    //         fib :: isize -> isize
+    //     "};
+
+    //     let fn_decl_input = indoc! {"
+    //         fib n =>
+    //             (fib n - 1) + (fib n - 2)
+    //     "};
+
+    //     test_parse! {
+    //         ProgramParser where
+    //         "" => vec![],
+    //         type_decl_input => vec![
+    //             Statement::TypeDecl {
+    //                 name: "fib".into(),
+    //                 body: Type::FnSig {
+    //                     args: vec![
+    //                         Box::new("isize".into())
+    //                     ],
+    //                     ret: Box::new("isize".into())
+    //                 }
+    //             }
+    //         ],
+    //         fn_decl_input => vec![
+    //             Statement::FnDecl {
+    //                 name: "fib".into(),
+    //                 args: vec!["n".into()],
+    //                 body: vec![
+    //                     Box::new(ops(
+    //                         Expression::FnCall {
+    //                             name: "fib".into(),
+    //                             args: vec![
+    //                                 ops("n", OpSymbol::Minus, 1)
+    //                             ]
+    //                         },
+    //                         OpSymbol::Plus,
+    //                         Expression::FnCall {
+    //                             name: "fib".into(),
+    //                             args: vec![
+    //                                 ops("n", OpSymbol::Minus, 2)
+    //                             ]
+    //                         },
+    //                     ))
+    //                 ]
+    //             }
+    //         ]
+    //     }
+    // }
+
+    // TypeExpression tests.
+
+    #[test]
+    fn parse_fn_sig() {
+        test_parse! {
+            FnSigParser where
+            "int int -> int" => Type::FnSig {
+                args: vec![
+                    Box::new("int".into()),
+                    Box::new("int".into())
+                ],
+                ret: Box::new("int".into())
+            },
+            "int int -> int -> int" => Type::FnSig {
+                args: vec![
+                    Box::new("int".into()),
+                    Box::new("int".into())
+                ],
+                ret: Box::new(Type::FnSig {
+                    args: vec![
+                        Box::new("int".into())
+                    ],
+                    ret: Box::new("int".into())
+                })
+            }
+        }
+    }
+
+    #[test]
+    fn parse_type_decl() {
+        test_parse! {
+            TypeDeclParser where
+            "fib :: int int -> int" => Statement::TypeDecl {
+                name: "fib".into(),
+                body: Type::FnSig {
+                    args: vec![
+                        Box::new("int".into()),
+                        Box::new("int".into())
+                    ],
+                    ret: Box::new("int".into())
+                },
             }
         }
     }
