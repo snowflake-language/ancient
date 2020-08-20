@@ -142,6 +142,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "diamond"
+version = "0.1.0"
+dependencies = [
+ "parser",
+]
+
+[[package]]
 name = "diff"
 version = "0.1.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
