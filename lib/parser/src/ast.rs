@@ -18,14 +18,35 @@ pub enum Statement {
     FnDecl {
         name: String,
         args: Vec<String>,
-        body: Vec<Box<Expression>>,
+        body: Vec<Box<Statement>>,
     },
+    TypeDecl {
+        name: String,
+        body: Type,
+    },
+    Expression(Expression),
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Type {
+    FnSig {
+        args: Vec<Box<Type>>,
+        ret: Box<Type>,
+    },
+    Nat(BigInt),
+    Identifier(String),
 }
 
 #[derive(Debug, PartialEq)]
 pub enum Expression {
-    OpCall { op: OpSymbol, args: Vec<Box<Expression>> },
-    FnCall { name: String, args: Vec<Expression> },
+    OpCall {
+        op: OpSymbol,
+        args: Vec<Box<Expression>>,
+    },
+    FnCall {
+        name: String,
+        args: Vec<Expression>,
+    },
     Integer(BigInt),
     Identifier(String),
 }

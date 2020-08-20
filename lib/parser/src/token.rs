@@ -25,7 +25,7 @@ pub enum Token {
     #[regex("[0-9][0-9_]*", |lex| lex.slice().parse())]
     Integer(BigInt),
 
-    // should be replaced with inserted tokens
+    // replaced with inserted tokens
     #[regex("\n(  )*", |lex| ((lex.slice().len() - 1) / 2))]
     Indentation(usize),
 
@@ -54,6 +54,11 @@ pub enum Token {
 
     #[error(|lex| lex.slice().parse())]
     Unknown,
+
+    // inserted tokens
+    Newline,
+    Indent,
+    Dedent,
 }
 
 #[cfg(test)]

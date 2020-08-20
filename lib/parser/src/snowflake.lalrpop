@@ -11,14 +11,64 @@
 // to preserve a visual separation between parsing and ast  
 use crate::ast;
 use crate::token::Token;
-use crate::indentation::IndentationLevel;
-use lalrpop_util::ParseError;
 use num_bigint::BigInt;
 
-grammar(indentation: &mut IndentationLevel);
+grammar;
+
+pub Program: Vec<ast::Statement> = {
+    ProgramLine* => <>.into_iter().flatten().collect()
+}
+
+pub ProgramLine: Vec<ast::Statement> = {
+    <s:Statement> "\n" => vec![s],
+    "\n" => vec![]
+}
+
+// Begin Types
+pub TypeStatement: ast::Statement = {
+    TypeDecl
+}
+
+pub TypeDecl: ast::Statement = {
+    <name:Identifier> "::" <expr:TypeExpression> => ast::Statement::TypeDecl {
+        name: name,
+        body: expr
+    }
+}
+
+pub TypeExpression: ast::Type = {
+    SubTypeExpression,
+    FnSig,
+}
+
+pub SubTypeExpression: ast::Type = {
+    "(" <e:TypeExpression> ")" => e,
+    TypeLiteral
+}
+
+pub FnSig: ast::Type = {
+    <args:SubTypeExpression+> "->" <ret:TypeExpression> => {
+        let mut out_args = vec![];
+        for arg in args {
+            out_args.push(Box::new(arg))
+        };
+        ast::Type::FnSig {
+            args: out_args,
+            ret: Box::new(ret)
+        }
+    }
+}
+
+pub TypeLiteral: ast::Type = {
+    Integer => ast::Type::Nat(<>),
+    Identifier => ast::Type::Identifier(<>),
+}
+// End Types
 
 pub Statement: ast::Statement = {
-    FnDecl
+    TypeStatement,
+    FnDecl,
+    // Expression => ast::Statement::Expression(<>)
 }
 
 pub FnDecl: ast::Statement = {
@@ -26,11 +76,6 @@ pub FnDecl: ast::Statement = {
         name: name,
         args: args,
         body: body
-    },
-    <name:Identifier> <args:Identifier*> "=>" <body:Expression> => ast::Statement::FnDecl {
-        name: name,
-        args: args,
-        body: vec![Box::new(body)]
     }
 }
 
@@ -43,19 +88,16 @@ pub Expression: ast::Expression = {
 }
 
 pub SubExpression: ast::Expression = {
-    "(" <e:Expression> ")" => e,
     OpCall,
 }
 
+pub Block: Vec<Box<ast::Statement>> = {
+    <s:ExpressionStatement> => vec![s],
+    "\n" Indent <s:ExpressionStatement+> Dedent => s
+}
 
-pub Block: Vec<Box<ast::Expression>> = {
-    Indent <expr:Expression> <exprs:(Newline Expression)*> Dedent => {
-        let mut out = vec![Box::new(expr)];
-        for e in exprs {
-            out.push(Box::new(e.1));
-        };
-        out
-    }
+pub ExpressionStatement: Box<ast::Statement> = {
+    <e:Expression> "\n" => Box::new(ast::Statement::Expression(e))
 }
 
 pub OpCall: ast::Expression = {
@@ -71,6 +113,7 @@ pub OpCall: ast::Expression = {
 
 // note(@bree): possibly future use, may remove.
 pub Atom: ast::Expression = {
+    "(" <e:Expression> ")" => e,
     Literal,
 }
 
@@ -103,63 +146,6 @@ pub Identifier: String = {
   "Identifier"
 }
 
-// todo(@bree): make these smaller, potentially adding functionality to the indentation module
-Indent: () = {
-    "Indentation" =>? {
-        if <> > indentation.level() {
-            indentation.update(<>);
-            Ok(())
-        } else {
-            Err(
-                ParseError::User {
-                    error: format!(
-                        "Expected an Indent with an indentation higher than {}; instead found an indentation of {}",
-                        indentation.level(),
-                        <>
-                    )
-                }
-            )
-        }
-    }
-};
-
-Dedent: () = {
-    "Indentation" =>? {
-        if <> < indentation.level() {
-            indentation.update(<>);
-            Ok(())
-        } else {
-            Err(
-                ParseError::User {
-                    error: format!(
-                        "Expected a Dedent with an indentation lower than {}; instead found an indentation of {}",
-                        indentation.level(),
-                        <>
-                    )
-                }
-            )
-        }
-    }
-};
-
-Newline: () = {
-    "Indentation" =>? {
-        if <> == indentation.level() {
-            Ok(())
-        } else {
-            Err(
-                ParseError::User {
-                    error: format!(
-                        "Expected a Newline with an indentation of {}; instead found an indentation of {}",
-                        indentation.level(),
-                        <>
-                    )
-                }
-            )
-        }
-    }
-};
-
 extern {
     type Location = usize;
     type Error = String;
@@ -168,7 +154,6 @@ extern {
         "Identifier" => Token::Identifier(<String>),
         "Float" => Token::Float(<f64>),
         "Integer" => Token::Integer(<BigInt>),
-        "Indentation" => Token::Indentation(<usize>),
         "=" => Token::Equal,
         "::" => Token::ColonColon,
         "**" => Token::StarStar,
@@ -177,6 +162,10 @@ extern {
         "Whitespace" => Token::Whitespace,
         "Symbol" => Token::Symbol(<char>),
         "Unknown" => Token::Unknown,
+        // indentation
+        Indent => Token::Indent,
+        Dedent => Token::Dedent,
+        "\n" => Token::Newline,
         // symbols
         "(" => Token::Symbol('('),
         ")" => Token::Symbol(')'),
