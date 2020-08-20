@@ -9,12 +9,10 @@
 
 #[macro_use]
 extern crate lalrpop_util;
-use logos::Logos;
 pub mod ast;
 pub mod indentation;
 pub mod token;
-
-use token::Token;
+pub mod lexer;
 
 lalrpop_mod!(pub snowflake);
 
@@ -81,7 +79,7 @@ mod test {
     macro_rules! test_parse {
         ($path:ty where $($input:expr => $test:expr),*) => {
             $({
-                let input = token::lex($input);
+                let input = lexer::lex($input);
                 let program = <$path>::new().parse(input).unwrap();
                 assert_eq!(program, $test)
             })*
