@@ -7,27 +7,16 @@ use tag::{UniverseBuilder, UniverseError, Universe, BindingBuilder, Binding};
 fn eval_statement<'a>(universe: &mut Universe<'a, Statement>, statement: Statement) -> Result<(), Box<dyn std::error::Error>> {
     match statement {
         Statement::FnDecl { name: n, args: a, body: b } => {
+            // TODO(@monarrk): This could really be cleaner
             let r = universe.insert(|x| x
-                                            .set_name(Cow::from(n.clone()))
-                                            .set_value(Statement::FnDecl {
-                                                name: n.clone(),
-                                                args: a.clone(),
-                                                body: b.clone(),
-                                            })
-                                            );
-            //let _ = match e {
-            //    Ok(o) => o,
-            //    // TODO(@monarrk): handle this error better probably?
-            //    Err(err) if matches!(err, UniverseError::BindingAlreadyExists) => {
-            //        eprintln!("Error: Binding already exists: {}", err);
-            //        exit(1);
-            //    },
-            //    Err(err) => {
-            //        eprintln!("Error!: {}", err);
-            //        return ;
-            //    },
-            //};
-            
+                                        .set_name(Cow::from(n.clone()))
+                                        .set_value(Statement::FnDecl {
+                                            name: n.clone(),
+                                            args: a.clone(),
+                                            body: b.clone(),
+                                        })
+                                    );
+
             return match r {
                 Ok(_) => Ok(()),
                 Err(e) => Err(Box::new(e)),
@@ -69,7 +58,7 @@ fn eval_statement<'a>(universe: &mut Universe<'a, Statement>, statement: Stateme
                 },
 
                 Expression::FnCall { name: n, args: a } => {
-                    
+                
                 },
 
                 Expression::Integer(i) => {
