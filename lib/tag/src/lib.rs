@@ -34,58 +34,329 @@
 //! [mathematical set]: https://en.wikipedia.org/wiki/Set_theory
 //! [venn diagram]: https://en.wikipedia.org/wiki/Venn_diagram
 
-use std::collections::HashMap;
-use id_arena::{Arena, DefaultArenaBehavior};
-use sdset::SetBuf;
+use id_arena::{Arena, ArenaBehavior, DefaultArenaBehavior};
+use sdset::{Error as SdsetError, Set};
+use std::{borrow::Cow, clone::Clone, collections::hash_map::HashMap};
+use thiserror::Error;
+
+/// A builder-like type, used in construction of a [`Binding`]
+///
+/// [`Binding`]: ./struct.Binding.html
+#[derive(Debug, Default)]
+pub struct BindingBuilder<'a, T>
+where
+    T: Default + Clone,
+{
+    pub(crate) binding: Binding<'a, T>,
+    pub(crate) tags: Vec<TagName<'a>>,
+}
+
+impl<'a, T> BindingBuilder<'a, T>
+where
+    T: Default + Clone,
+{
+    /// Sets the name portion of the [`Binding`]
+    ///
+    /// [`Binding`]: ./struct.Binding.html
+    pub fn set_name(&mut self, name: Cow<'a, str>) -> &mut Self {
+        self.binding.name = name;
+        self
+    }
+
+    /// Sets the value portion of the [`Binding`]
+    ///
+    /// [`Binding`]: ./struct.Binding.html
+    pub fn set_value(&mut self, value: T) -> &mut Self {
+        self.binding.value = value;
+        self
+    }
+
+    /// Adds the [`Binding`] to a [`Tag`] by its [`TagName`]
+    ///
+    /// [`Binding`]: ./struct.Binding.html
+    /// [`Tag`]: ./enum.Tag.html
+    /// [`TagName`]: ./enum.TagName.html
+    pub fn add_tag(&mut self, tag: TagName<'a>) -> &mut Self {
+        self.tags.push(tag);
+        self
+    }
+
+    /// Removes the provided [`TagName`] from the [`Binding`]'s current [`Tag`]s
+    ///
+    /// [`TagName`]: ./enum.TagName.html
+    /// [`Binding`]: ./struct.Binding.html
+    /// [`Tag`]: ./enum.Tag.html
+    pub fn remove_tag(mut self, tag: TagName<'a>) -> Self {
+        self.tags = self.tags.into_iter().filter(|t| *t != tag).collect();
+        self
+    }
+}
 
 /// A relation between a string and its corresponding value. The string is considered to be the
 /// uniqueness specifier, the value has no play in equality
-#[derive(Debug, Default)]
-pub struct Binding<T> {
-    pub name: String,
+#[derive(Debug, Default, Clone)]
+pub struct Binding<'a, T>
+where
+    T: Clone,
+{
+    pub name: Cow<'a, str>,
     pub value: T,
 }
 
-impl<T> PartialEq for Binding<T> {
+impl<'a, T> PartialEq for Binding<'a, T>
+where
+    T: Clone,
+{
     fn eq(&self, other: &Self) -> bool {
         self.name == other.name
     }
 }
 
-impl<T> Eq for Binding<T> {}
+impl<'a, T: Clone> Eq for Binding<'a, T> {}
+
+/// A tag's name. Used to key names to the corresponding tags in a [`HashMap`] without special
+/// syntax (i.e. `*`, which is used to denote a primary one in snowflake itself)
+///
+/// [`HashMap`]: https://doc.rust-lang.org/nightly/std/collections/struct.HashMap.html
+#[derive(Debug, Eq, PartialEq, Hash, Clone)]
+pub enum TagName<'a> {
+    Primary(Cow<'a, str>),
+    Secondary(Cow<'a, str>),
+}
 
 /// A tag. Primary tags are equivalent to mathematical sets, secondary tags are the same but
 /// without the uniqueness restriction. Within the contained [`Binding`], only the [`name`] must be
 /// unique
 ///
+/// Note: there is no validation done on the names of the contained bindings; the task of ensuring
+/// name validity is up to you
+///
 /// [`Binding`]: ./struct.Binding.html
 /// [`name`]: ./struct.Binding.html#structfield.name
-#[derive(Debug)]
-pub enum Tag<T> {
-    Primary(SetBuf<Binding<T>>),
-    Secondary(SetBuf<Binding<T>>),
+#[derive(Debug, PartialEq, Eq)]
+pub enum Tag<'a, T>
+where
+    T: Clone,
+{
+    Primary(Vec<<DefaultArenaBehavior<Binding<'a, T>> as ArenaBehavior>::Id>),
+    Secondary(Vec<<DefaultArenaBehavior<Binding<'a, T>> as ArenaBehavior>::Id>),
 }
 
-/// A builder for the [`Universe`] type, designed to make constructing its components easier
-#[derive(Debug, Default)]
-pub struct UniverseBuilder<T> {
-    pub(crate) universe: Universe<T>,
-}
-
-impl<T> UniverseBuilder<T> {
-    /// "Builds" the builder type, returning the internal [`Universe`]
+impl<'a, T> Tag<'a, T>
+where
+    T: Clone,
+{
+    /// Retrieves a reference to the inner vector of the [`Tag`] as a [`Set`]. If the vector is not
+    /// sorted, then it will fail. Because of this, it is recommended to call [`Tag::sort`] before
+    /// calling this method
     ///
-    /// [`Universe`]: ./struct.Universe.html
-    fn build(self) -> Universe<T> {
-        self.universe
+    /// [`Tag`]: ./enum.Tag.html
+    /// [`Set`]: https://docs.rs/sdset/0.4.0/sdset/set/struct.Set.html
+    /// [`Tag::sort`]: ./enum.Tag.html#method.sort
+    pub fn as_set(
+        &self,
+    ) -> Result<&Set<<DefaultArenaBehavior<Binding<'a, T>> as ArenaBehavior>::Id>, SdsetError> {
+        Set::new(self.as_slice())
+    }
+
+    /// Retrieves a reference to the inner vector of the [`Tag`]
+    ///
+    /// [`Tag`]: ./enum.Tag.html
+    pub fn as_slice(&self) -> &[<DefaultArenaBehavior<Binding<'a, T>> as ArenaBehavior>::Id] {
+        match self {
+            Tag::Primary(s) => s,
+            Tag::Secondary(s) => s,
+        }
+    }
+
+    /// Retrieves a mutable reference to the inner vector of the [`Tag`]
+    ///
+    /// [`Tag`]: ./enum.Tag.html
+    pub fn as_mut_slice(
+        &mut self,
+    ) -> &mut [<DefaultArenaBehavior<Binding<'a, T>> as ArenaBehavior>::Id] {
+        match self {
+            Tag::Primary(s) => s,
+            Tag::Secondary(s) => s,
+        }
+    }
+
+    /// Sorts the [`Tag`]'s contents. Primarily useful before calling [`Tag::set`]
+    ///
+    /// [`Tag`]: ./enum.Tag.html
+    /// [`Tag::set`]: ./enum.Tag.html#method.set
+    pub fn sort(&mut self) {
+        self.as_mut_slice().sort();
     }
 }
 
-#[derive(Debug, Default, Eq, PartialEq)]
-pub struct Universe<T> {
-    bindings: Arena<Binding<T>, DefaultArenaBehavior<Binding<T>>>,
-    tags: HashMap<String, SetBuf<Binding<T>>>, 
+/// A builder-like type, used to ease in the creation of the [`Universe`] type
+///
+/// [`Universe`]: ./struct.Universe.html
+#[derive(Debug, Default)]
+pub struct UniverseBuilder {
+    pub(crate) tag_hashmap_capacity: Option<usize>,
+    pub(crate) binding_arena_capacity: Option<usize>,
 }
 
-impl<T> Universe<T> {
+impl UniverseBuilder {
+    /// "Builds" the builder type, returning a [`Universe`]
+    ///
+    /// [`Universe`]: ./struct.Universe.html
+    fn build<'a, T>(&mut self) -> Universe<'a, T>
+    where
+        T: Default + Clone,
+    {
+        Universe {
+            bindings: self
+                .binding_arena_capacity
+                .map_or_else(|| Arena::new(), |capacity| Arena::with_capacity(capacity)),
+            tags: self.tag_hashmap_capacity.map_or_else(
+                || HashMap::new(),
+                |capacity| HashMap::with_capacity(capacity),
+            ),
+        }
+    }
+
+    /// Sets the number of elements to reserve capacity for in the tag [`HashMap`]
+    ///
+    /// [`HashMap`]: https://doc.rust-lang.org/nightly/std/collections/struct.HashMap.html
+    pub fn with_tag_hashmap_capacity(&mut self, capacity: usize) -> &mut Self {
+        self.tag_hashmap_capacity = Some(capacity);
+        self
+    }
+
+    /// Sets the number of elements to reserve capacity for in the binding [`Arena`]
+    ///
+    /// [`Arena`]: https://docs.rs/id-arena/2.2.1/id_arena/struct.Arena.html
+    pub fn with_binding_arena_capacity(&mut self, capacity: usize) -> &mut Self {
+        self.binding_arena_capacity = Some(capacity);
+        self
+    }
+}
+
+/// A reference to an entry in a [`Universe`]
+///
+/// [`Universe`]: ./struct.Universe.html
+pub struct UniverseEntry<'a, T>
+where
+    T: Default + Clone,
+{
+    pub binding: <DefaultArenaBehavior<Binding<'a, T>> as ArenaBehavior>::Id,
+    pub tags: Vec<TagName<'a>>,
+}
+
+impl<'a, T> UniverseEntry<'a, T>
+where
+    T: Default + Clone,
+{
+    // /// Convert the [`UniverseEntry`] to an owned
+}
+
+/// A list of possible errors that may be encountered while working with a [`Universe`]
+///
+/// [`Universe`]: ./struct.Universe.html
+#[non_exhaustive]
+#[derive(Error, Debug)]
+pub enum UniverseError {
+    /// An error returned if such a binding already exists inside of the [`Universe`]
+    ///
+    /// Note: this does not contain a [`UniverseEntry`] of the existing binding due to the effort
+    /// required to generate one
+    ///
+    /// [`Universe`]: ./struct.Universe.html
+    #[error("The provided binding name is already in use")]
+    BindingAlreadyExists,
+
+    /// An error that may be encountered while working with the sdset library
+    #[error("An error was encountered while using the `sdset` library")]
+    SdsetError(#[from] SdsetError),
+}
+
+/// A collection of [`Tag`]s and their [`Binding`]s
+///
+/// [`Tag`]: ./enum.Tag.html
+/// [`Binding`]: ./struct.Binding.html
+#[derive(Debug, Default, Eq, PartialEq)]
+pub struct Universe<'a, T>
+where
+    T: Default + Clone,
+{
+    bindings: Arena<Binding<'a, T>, DefaultArenaBehavior<Binding<'a, T>>>,
+    tags: HashMap<TagName<'a>, Tag<'a, T>>,
+}
+
+impl<'a, T> Universe<'a, T>
+where
+    T: Default + Clone,
+{
+    /// Creates a new [`Universe`] using a [`UniverseBuilder`]. If you would rather not use a
+    /// builder, a [`Universe`] can be initialized using default fields using the
+    /// [`Default::default`] trait method
+    ///
+    /// [`Universe`]: ./struct.Universe.html
+    /// [`UniverseBuilder`]: ./struct.UniverseBuilder.html
+    /// [`Default::default`]: https://doc.rust-lang.org/nightly/std/default/trait.Default.html#tymethod.default
+    pub fn new<F>(f: F) -> Self
+    where
+        F: FnOnce(&mut UniverseBuilder) -> &mut UniverseBuilder,
+    {
+        let mut builder = UniverseBuilder::default();
+        f(&mut builder).build()
+    }
+
+    /// Populates the [`Universe`] with a new value using a [`BindingBuilder`], returning a
+    /// [`UniverseEntry`] referencing the given element. If a value with that name already exists,
+    /// a [`UniverseError`] is returned.
+    ///
+    /// [`Universe`]: ./struct.Universe.html
+    /// [`BindingBuilder`]: ./struct.ValueBuilder.html
+    /// [`UniverseEntry`]: ./struct.UniverseEntry.html
+    /// [`UniverseError`]: ./struct.UniverseError.html
+    pub fn insert<F>(&mut self, f: F) -> Result<UniverseEntry<'a, T>, UniverseError>
+    where
+        F: for<'b> FnOnce(&'b mut BindingBuilder<'a, T>) -> &'b mut BindingBuilder<'a, T>,
+    {
+        let mut builder = BindingBuilder::default();
+        f(&mut builder);
+
+        let binding = self.bindings.alloc(builder.binding.clone());
+
+        for t in &builder.tags {
+            match self.tags.get_mut(t) {
+                Some(t) => match t {
+                    Tag::Primary(s) => {
+                        let bindings = &self.bindings;
+
+                        if s.iter()
+                            .find(|b| match bindings.get(**b) {
+                                Some(b) => b.name == builder.binding.name,
+                                None => false,
+                            })
+                            .is_none()
+                        {
+                            s.push(binding);
+                        } else {
+                            return Err(UniverseError::BindingAlreadyExists);
+                        }
+                    }
+                    Tag::Secondary(s) => s.push(binding),
+                },
+                None => match t {
+                    TagName::Primary(_) => {
+                        self.tags.insert((*t).clone(), Tag::Primary(vec![binding]));
+                    }
+                    TagName::Secondary(_) => {
+                        self.tags
+                            .insert((*t).clone(), Tag::Secondary(vec![binding]));
+                    }
+                },
+            }
+        }
+
+        Ok(UniverseEntry {
+            binding,
+            tags: builder.tags,
+        })
+    }
 }
