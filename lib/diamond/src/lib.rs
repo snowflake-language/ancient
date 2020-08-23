@@ -4,10 +4,10 @@ use std::process::exit;
 use parser::ast::{Expression, Type, OpSymbol, Statement};
 use tag::{UniverseBuilder, UniverseError, Universe, BindingBuilder, Binding};
 
-fn eval_statement<'a>(universe: &mut Universe<'a, Statement>, statement: Statement) {
+fn eval_statement<'a>(universe: &mut Universe<'a, Statement>, statement: Statement) -> Result<(), Box<dyn std::error::Error>> {
     match statement {
         Statement::FnDecl { name: n, args: a, body: b } => {
-            let e = universe.insert(|x| x
+            let r = universe.insert(|x| x
                                             .set_name(Cow::from(n.clone()))
                                             .set_value(Statement::FnDecl {
                                                 name: n.clone(),
@@ -15,18 +15,23 @@ fn eval_statement<'a>(universe: &mut Universe<'a, Statement>, statement: Stateme
                                                 body: b.clone(),
                                             })
                                             );
-            let _ = match e {
-                Ok(o) => o,
-                // TODO(@monarrk): handle this error better probably?
-                Err(err) if matches!(err, UniverseError::BindingAlreadyExists) => {
-                    eprintln!("Error: Binding already exists: {}", err);
-                    exit(1);
-                },
-                Err(err) => {
-                    eprintln!("Error!: {}", err);
-                    exit(1);
-                },
-            };
+            //let _ = match e {
+            //    Ok(o) => o,
+            //    // TODO(@monarrk): handle this error better probably?
+            //    Err(err) if matches!(err, UniverseError::BindingAlreadyExists) => {
+            //        eprintln!("Error: Binding already exists: {}", err);
+            //        exit(1);
+            //    },
+            //    Err(err) => {
+            //        eprintln!("Error!: {}", err);
+            //        return ;
+            //    },
+            //};
+            
+            return match r {
+                Ok(_) => Ok(()),
+                Err(e) => Err(Box::new(e)),
+            }
 
         },
 
@@ -64,7 +69,7 @@ fn eval_statement<'a>(universe: &mut Universe<'a, Statement>, statement: Stateme
                 },
 
                 Expression::FnCall { name: n, args: a } => {
-
+                    
                 },
 
                 Expression::Integer(i) => {
@@ -77,10 +82,24 @@ fn eval_statement<'a>(universe: &mut Universe<'a, Statement>, statement: Stateme
             };
         },
     };
+
+    Ok(())
 }
 
 /// Execute a snowflake AST
-pub fn eval(statement: Statement) {
+pub fn eval(statement: Statement) -> Result<(), Box<dyn std::error::Error>> {
     let mut universe = Universe::<Statement>::default();
-    eval_statement(&mut universe, statement);
+    eval_statement(&mut universe, statement)
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use parser::snowflake::*;
+    use parser::lexer;
+
+    #[test]
+    fn eval_fn_decl() {
+        eval(FnDeclParser::new().parse(lexer::lex("add a b =>\n  a + b\n")).unwrap()).unwrap();
+    }
 }
