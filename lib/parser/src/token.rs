@@ -59,6 +59,7 @@ pub enum Token {
     Newline,
     Indent,
     Dedent,
+    Error(String),
 }
 
 #[cfg(test)]

@@ -10,13 +10,13 @@
 #[derive(Debug, Clone, PartialEq)]
 pub enum Indentation {
     Indent,
-    Dedent,
+    Dedent(usize),
     Ondent,
 }
 
-#[derive(Clone, PartialEq, Debug, Default)]
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct IndentationLevel {
-    stack: Vec<usize>,
+    pub stack: Vec<usize>,
 }
 
 impl IndentationLevel {
@@ -28,16 +28,22 @@ impl IndentationLevel {
         *self.stack.last().unwrap_or(&0)
     }
 
-    pub fn update(&mut self, level: usize) -> Indentation {
+    pub fn update(&mut self, level: usize) -> Result<Indentation, &'static str> {
         if level > self.level() {
             self.stack.push(level);
-            Indentation::Indent
+            Ok(Indentation::Indent)
         } else if level < self.level() {
-            while self.stack.pop().unwrap_or(0) <= level {}
-            self.stack.push(level);
-            Indentation::Dedent
+            if level == 0 || self.stack.iter().find(|&&x| x == level).is_some() {
+                let stack_level = self.stack.len();
+                while self.level() > level {
+                    self.stack.pop();
+                }
+                Ok(Indentation::Dedent(stack_level - self.stack.len()))
+            } else {
+                Err("indentation level while dedenting does not match any previously indented level.")
+            }
         } else {
-            Indentation::Ondent
+            Ok(Indentation::Ondent)
         }
     }
 }
@@ -49,17 +55,34 @@ mod test {
     #[test]
     fn test_indentation() {
         let mut indentation = IndentationLevel::new();
-        assert_eq!(indentation.update(1), Indentation::Indent);
+        assert_eq!(indentation.update(1), Ok(Indentation::Indent));
         assert_eq!(indentation.level(), 1);
-        assert_eq!(indentation.update(0), Indentation::Dedent);
+        assert_eq!(indentation.update(0), Ok(Indentation::Dedent(1)));
         assert_eq!(indentation.level(), 0);
-        assert_eq!(indentation.update(2), Indentation::Indent);
-        assert_eq!(indentation.level(), 2);
-        assert_eq!(indentation.update(1), Indentation::Dedent);
+        assert_eq!(indentation.update(1), Ok(Indentation::Indent));
         assert_eq!(indentation.level(), 1);
-        assert_eq!(indentation.update(3), Indentation::Indent);
+        assert_eq!(indentation.update(3), Ok(Indentation::Indent));
         assert_eq!(indentation.level(), 3);
-        assert_eq!(indentation.update(0), Indentation::Dedent);
-        assert_eq!(indentation.level(), 0)
+        assert_eq!(
+            indentation.update(2),
+            Err("indentation level while dedenting does not match any previously indented level.")
+        );
+        assert_eq!(indentation.level(), 3);
+        assert_eq!(indentation.update(0), Ok(Indentation::Dedent(2)));
+        assert_eq!(indentation.level(), 0);
+    }
+
+    #[test]
+    fn test_indentation_stack_size() {
+        let mut indentation = IndentationLevel::new();
+        assert_eq!(indentation.update(1), Ok(Indentation::Indent));
+        assert_eq!(indentation.level(), 1);
+        assert_eq!(indentation.update(2), Ok(Indentation::Indent));
+        assert_eq!(indentation.level(), 2);
+        assert_eq!(indentation.update(3), Ok(Indentation::Indent));
+        assert_eq!(indentation.level(), 3);
+        assert_eq!(indentation.stack.len(), 3);
+        assert_eq!(indentation.update(2), Ok(Indentation::Dedent(1)));
+        assert_eq!(indentation.stack.len(), 2)
     }
 }
