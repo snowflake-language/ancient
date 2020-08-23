@@ -1,9 +1,33 @@
-use parser::ast::{Expression, Type, OpSymbol, Statement};
+use std::borrow::Cow;
+use std::process::exit;
 
-fn eval_statement(statement: Statement) {
+use parser::ast::{Expression, Type, OpSymbol, Statement};
+use tag::{UniverseBuilder, UniverseError, Universe, BindingBuilder, Binding};
+
+fn eval_statement<'a>(universe: &mut Universe<'a, Statement>, statement: Statement) {
     match statement {
         Statement::FnDecl { name: n, args: a, body: b } => {
-            
+            let e = universe.insert(|x| x
+                                            .set_name(Cow::from(n.clone()))
+                                            .set_value(Statement::FnDecl {
+                                                name: n.clone(),
+                                                args: a.clone(),
+                                                body: b.clone(),
+                                            })
+                                            );
+            let _ = match e {
+                Ok(o) => o,
+                // TODO(@monarrk): handle this error better probably?
+                Err(err) if matches!(err, UniverseError::BindingAlreadyExists) => {
+                    eprintln!("Error: Binding already exists: {}", err);
+                    exit(1);
+                },
+                Err(err) => {
+                    eprintln!("Error!: {}", err);
+                    exit(1);
+                },
+            };
+
         },
 
         Statement::TypeDecl { name: n, body: b } => {
@@ -55,6 +79,8 @@ fn eval_statement(statement: Statement) {
     };
 }
 
+/// Execute a snowflake AST
 pub fn eval(statement: Statement) {
-    eval_statement(statement);
+    let mut universe = Universe::<Statement>::default();
+    eval_statement(&mut universe, statement);
 }

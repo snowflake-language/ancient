@@ -146,6 +146,7 @@ name = "diamond"
 version = "0.1.0"
 dependencies = [
  "parser",
+ "tag",
 ]
 
 [[package]]
