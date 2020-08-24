@@ -75,9 +75,52 @@ pub FnDecl: ast::Statement = {
     <name:Identifier> <args:Identifier*> "=>" <body:Block> => ast::Statement::FnDecl {
         name: name,
         args: args,
-        body: body
+        body: body,
     }
 }
+
+
+pub Match: ast::Expression = {
+    "match" <expr:Expression> "=>" <parts:MatchBlock> => ast::Expression::Match {
+        expr: Box::new(expr),
+        args: parts,
+    }
+}
+
+// todo: macro/generic
+pub MatchBlock: Vec<ast::Expression> = {
+    "\n" Indent <patterns:MatchPart+> Dedent => patterns,
+}
+
+pub MatchPart: ast::Expression = {
+    <pat:Pattern> "=>" <body:Block> => ast::Expression::Destructure {
+        pat: pat,
+        body: body,
+    }
+}
+
+pub Pattern: ast::Pattern = {
+    RangePattern,
+    LiteralPattern,
+    WildcardPattern,
+}
+
+pub LiteralPattern: ast::Pattern = {
+    Integer => ast::Pattern::Integer(<>),
+    Identifier => ast::Pattern::Identifier(<>),
+}
+
+pub RangePattern: ast::Pattern = {
+    <start:LiteralPattern> ".." <end:LiteralPattern> => ast::Pattern::Range {
+        start: Some(Box::new(start)),
+        end: Some(Box::new(end)),
+    }
+}
+
+pub WildcardPattern: ast::Pattern = {
+    "_" => ast::Pattern::Wildcard,
+}
+
 
 // (Main)Expression and SubExpression are a solution to remove abiguity issues with FnCall
 // for exampe: "add a b" could be seen as able to be parsed multiple ways { add(a, b) or add(a(b)) }
@@ -154,13 +197,15 @@ extern {
         "Identifier" => Token::Identifier(<String>),
         "Float" => Token::Float(<f64>),
         "Integer" => Token::Integer(<BigInt>),
+        "match" => Token::Match,
         "=" => Token::Equal,
+        ".." => Token::DotDot,
         "::" => Token::ColonColon,
         "**" => Token::StarStar,
         "=>" => Token::LargeArrowRight,
         "->" => Token::SmallArrowRight,
         "Whitespace" => Token::Whitespace,
-        "Symbol" => Token::Symbol(<char>),
+        // "Symbol" => Token::Symbol(<char>),
         "Unknown" => Token::Unknown,
         // indentation
         Indent => Token::Indent,
@@ -172,6 +217,7 @@ extern {
         "+" => Token::Symbol('+'),
         "-" => Token::Symbol('-'),
         "*" => Token::Symbol('*'),
-        "/" => Token::Symbol('/')
+        "/" => Token::Symbol('/'),
+        "_" => Token::Symbol('_'),
     }
 }

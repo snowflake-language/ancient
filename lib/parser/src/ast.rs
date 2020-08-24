@@ -47,6 +47,25 @@ pub enum Expression {
         name: String,
         args: Vec<Expression>,
     },
+    Match {
+        expr: Box<Expression>,
+        args: Vec<Expression>,
+    },
+    Destructure {
+        pat: Pattern,
+        body: Vec<Box<Statement>>,
+    },
+    Integer(BigInt),
+    Identifier(String),
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Pattern {
+    Wildcard,
+    Range {
+        start: Option<Box<Pattern>>,
+        end: Option<Box<Pattern>>,
+    },
     Integer(BigInt),
     Identifier(String),
 }

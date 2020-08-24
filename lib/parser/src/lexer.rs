@@ -64,7 +64,7 @@ mod test {
                     e
             f
             g
-                    h
+                    _
             i
         "};
 
@@ -94,7 +94,7 @@ mod test {
                 Token::Identifier(String::from("g")),
                 Token::Newline,
                 Token::Indent,
-                Token::Identifier(String::from("h")),
+                Token::Symbol('_'),
                 Token::Newline,
                 Token::Dedent,
                 Token::Identifier(String::from("i")),

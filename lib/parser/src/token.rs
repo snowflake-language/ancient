@@ -19,7 +19,7 @@ pub enum Token {
     #[regex("[a-zA-Z][a-zA-Z1-9_]*", |lex| lex.slice().parse())]
     Identifier(String),
 
-    #[regex(r"[0-9]*\.[0-9]+", |lex| lex.slice().parse())]
+    #[regex(r"[0-9]+\.[0-9]+", |lex| lex.slice().parse())]
     Float(f64),
 
     #[regex("[0-9][0-9_]*", |lex| lex.slice().parse())]
@@ -29,6 +29,9 @@ pub enum Token {
     #[regex("\n(  )*", |lex| ((lex.slice().len() - 1) / 2))]
     Indentation(usize),
 
+    #[token("match")]
+    Match,
+
     // todo: eventually give proper names to some of these
     // "non-symbol" character combinations
     #[token("=")]
@@ -36,6 +39,9 @@ pub enum Token {
 
     #[token("::")]
     ColonColon,
+
+    #[token("..")]
+    DotDot,
 
     #[token("**")]
     StarStar,
@@ -49,7 +55,7 @@ pub enum Token {
     #[regex(r"\s", logos::skip)]
     Whitespace,
 
-    #[regex(r"[!-/:-@\[-`{-~()]", lex_char)]
+    #[regex(r"[!-/:-@\[-`{-~()_<>]", lex_char)]
     Symbol(char),
 
     #[error(|lex| lex.slice().parse())]
@@ -72,8 +78,9 @@ mod tests {
     fn lex_test() {
         let source = indoc! {"
             fib :: isize -> isize
-            fib n =>
-              (fib n - 1) + (fib n - 2)
+            fib n => match n =>
+              ..2 => n
+              _ => (fib n - 1) + (fib n - 2)
         "};
         let tokens: Vec<_> = Token::lexer(source).collect();
         assert_eq!(
@@ -88,7 +95,17 @@ mod tests {
                 Identifier(String::from("fib")),
                 Identifier(String::from("n")),
                 LargeArrowRight,
+                Match,
+                Identifier(String::from("n")),
+                LargeArrowRight,
                 Indentation(1),
+                DotDot,
+                Integer(BigInt::from(2)),
+                LargeArrowRight,
+                Identifier(String::from("n")),
+                Indentation(1),
+                Symbol('_'),
+                LargeArrowRight,
                 Symbol('('),
                 Identifier(String::from("fib")),
                 Identifier(String::from("n")),
