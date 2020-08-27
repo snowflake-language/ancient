@@ -132,8 +132,8 @@ pub struct Binding<'a, T>
 where
     T: Default + Clone,
 {
-    pub name: Cow<'a, str>,
-    pub value: T,
+    pub(crate) name: Cow<'a, str>,
+    pub(crate) value: T,
 }
 
 impl<'a, T> PartialEq for Binding<'a, T>
@@ -465,8 +465,11 @@ where
     ///
     /// [`Binding`]: ./struct.Binding.html
     /// [`Arena`]: https://docs.rs/id-arena/2.2.1/id_arena/struct.Arena.html
-    pub fn get(&self, id: <DefaultArenaBehavior<Binding<'a, T>> as ArenaBehavior>::Id) -> Option<&Binding<'a, T>> {
-        self.bindings.get(id)
+    pub fn get(
+        &self,
+        id: <DefaultArenaBehavior<Binding<'a, T>> as ArenaBehavior>::Id,
+    ) -> Option<(&Cow<'a, str>, &T)> {
+        self.bindings.get(id).map(|b| (&b.name, &b.value))
     }
 
     /// Retrieves a mutable reference to a [`Binding`] from the internal [`Arena`] using the
@@ -474,8 +477,11 @@ where
     ///
     /// [`Binding`]: ./struct.Binding.html
     /// [`Arena`]: https://docs.rs/id-arena/2.2.1/id_arena/struct.Arena.html
-    pub fn get_mut(&mut self, id: <DefaultArenaBehavior<Binding<'a, T>> as ArenaBehavior>::Id) -> Option<&mut Binding<'a, T>> {
-        self.bindings.get_mut(id)
+    pub fn get_mut(
+        &mut self,
+        id: <DefaultArenaBehavior<Binding<'a, T>> as ArenaBehavior>::Id,
+    ) -> Option<(&Cow<'a, str>, &mut T)> {
+        self.bindings.get_mut(id).map(|b| (&b.name, &mut b.value))
     }
 
     /// Performs an operation over the [`Universe`] using a [`UniverseOperationBuilder`] and
@@ -535,9 +541,13 @@ where
 
         let group_composition = match tags {
             (TagName::Primary(_), TagName::Primary(_)) => TagGroupComposition::Primary,
-            (TagName::Primary(_), TagName::Secondary(_)) => TagGroupComposition::PrimaryAndSecondary,
+            (TagName::Primary(_), TagName::Secondary(_)) => {
+                TagGroupComposition::PrimaryAndSecondary
+            }
             (TagName::Secondary(_), TagName::Secondary(_)) => TagGroupComposition::Secondary,
-            (TagName::Secondary(_), TagName::Primary(_)) => TagGroupComposition::SecondaryAndPrimary,
+            (TagName::Secondary(_), TagName::Primary(_)) => {
+                TagGroupComposition::SecondaryAndPrimary
+            }
         };
 
         Ok(match (group_composition, op) {
