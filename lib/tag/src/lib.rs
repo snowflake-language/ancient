@@ -461,6 +461,23 @@ where
         })
     }
 
+    /// Retrives a reference to a [`Binding`] from the internal [`Arena`] using the provided id
+    ///
+    /// [`Binding`]: ./struct.Binding.html
+    /// [`Arena`]: https://docs.rs/id-arena/2.2.1/id_arena/struct.Arena.html
+    pub fn get(&self, id: <DefaultArenaBehavior<Binding<'a, T>> as ArenaBehavior>::Id) -> Option<&Binding<'a, T>> {
+        self.bindings.get(id)
+    }
+
+    /// Retrieves a mutable reference to a [`Binding`] from the internal [`Arena`] using the
+    /// provided id
+    ///
+    /// [`Binding`]: ./struct.Binding.html
+    /// [`Arena`]: https://docs.rs/id-arena/2.2.1/id_arena/struct.Arena.html
+    pub fn get_mut(&mut self, id: <DefaultArenaBehavior<Binding<'a, T>> as ArenaBehavior>::Id) -> Option<&mut Binding<'a, T>> {
+        self.bindings.get_mut(id)
+    }
+
     /// Performs an operation over the [`Universe`] using a [`UniverseOperationBuilder`] and
     /// returns the resulting [`Tag`]
     ///
