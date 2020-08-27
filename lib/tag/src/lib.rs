@@ -68,10 +68,7 @@
 #![feature(or_patterns)]
 
 use id_arena::{Arena, ArenaBehavior, DefaultArenaBehavior};
-use sdset::{
-    duo::OpBuilder as DuoOpBuilder, multi::OpBuilder as MultiOpBuilder, Error as SdsetError, Set,
-    SetOperation,
-};
+use sdset::{duo::OpBuilder, Error as SdsetError, Set, SetOperation};
 use std::{borrow::Cow, clone::Clone, collections::hash_map::HashMap};
 use thiserror::Error;
 
@@ -149,6 +146,20 @@ where
 }
 
 impl<'a, T: Default + Clone> Eq for Binding<'a, T> {}
+
+/// The state of a group of [`Tag`]s. e.g. is it composed of either [`Tag::Primary`]s or
+/// [`Tag::Secondary`], or rather a mix of the two instead?
+///
+/// [`Tag`]: ./enum.Tag.html
+/// [`Tag::Primary`]: ./enum.Tag.html#variant.Primary
+/// [`Tag::Secondary`]: ./enum.Tag.html#variant.Secondary
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub enum TagGroupComposition {
+    Primary,
+    PrimaryAndSecondary,
+    Secondary,
+    SecondaryAndPrimary,
+}
 
 /// A tag's name. Used to key names to the corresponding tags in a [`HashMap`] without special
 /// syntax (i.e. `*`, which is used to denote a primary one in snowflake itself)
@@ -242,13 +253,13 @@ pub enum UniverseOperationOp {
 /// [`UniverseOperationOp`]: ./struct.UniverseOperationOp.html
 #[derive(Debug, Default)]
 pub struct UniverseOperationBuilder<'a> {
-    sets: Vec<TagName<'a>>,
+    tag_names: Option<(TagName<'a>, TagName<'a>)>,
     op: Option<UniverseOperationOp>,
 }
 
 impl<'a> UniverseOperationBuilder<'a> {
-    pub fn push(&mut self, tag: TagName<'a>) -> &mut Self {
-        self.sets.push(tag);
+    pub fn sets(&mut self, tags: (TagName<'a>, TagName<'a>)) -> &mut Self {
+        self.tag_names = Some(tags);
         self
     }
 
@@ -343,12 +354,12 @@ pub enum UniverseError {
     #[error("The provided TagName has no corresponding Tag")]
     InvalidTagName,
 
-    /// An error returned if not enough [`Tag`]s were provided to a [`UniverseOperationBuilder`]
+    /// An error returned if no [`Tag`]s were provided to a [`UniverseOperationBuilder`]
     ///
     /// [`Tag`]: ./enum.Tag.html
     /// [`UniverseOperationBuilder`]: ./struct.UniverseOperationBuilder.html
     #[error("Not enough Tags were provided")]
-    NotEnoughTags,
+    NoTagsProvided,
 
     /// An error returned if no [`UniverseOperationOp`] was provided to a
     /// [`UniverseOperationBuilder`]
@@ -465,61 +476,90 @@ where
         let mut builder = UniverseOperationBuilder::default();
         f(&mut builder);
 
-        let sets: Vec<&Set<<DefaultArenaBehavior<Binding<'a, T>> as ArenaBehavior>::Id>> = builder
-            .sets
-            .into_iter()
-            .map(|t| {
-                Ok(self
-                    .tags
-                    .get(&t)
-                    .ok_or(UniverseError::InvalidTagName)?
-                    .as_set()?)
-            })
-            .collect()?;
+        let tags = builder.tag_names.ok_or(UniverseError::NoTagsProvided)?;
+        let sets = (
+            self.tags
+                .get(&tags.0)
+                .ok_or(UniverseError::InvalidTagName)?
+                .as_set()?,
+            self.tags
+                .get(&tags.1)
+                .ok_or(UniverseError::InvalidTagName)?
+                .as_set()?,
+        );
 
-        macro generate_length_and_operation_match_clause_duo($sets:ident, $op:ident) {{
-            let vec = Vec::new();
-            DuoOpBuilder::new($sets[0], $sets[1])
+        macro generate_length_and_operation_match_clause($sets:ident, $op:ident) {{
+            let mut vec = Vec::new();
+            OpBuilder::new($sets.0, $sets.1)
                 .$op()
                 .extend_collection(&mut vec);
             vec
         }}
 
-        macro generate_length_and_operation_match_clause_multi($sets:ident, $op:ident) {{
-            let vec = Vec::new();
-            MultiOpBuilder::from_vec($sets)
-                .$op()
-                .extend_collection(&mut vec);
-            vec
-        }}
-
-        let set = match (sets.len(), builder.op) {
-            (2, Some(UniverseOperationOp::Union)) => {
-                generate_length_and_operation_match_clause_duo!(sets, union)
-            }
-            (2, Some(UniverseOperationOp::Intersection)) => {
-                generate_length_and_operation_match_clause_duo!(sets, intersection)
-            }
-            (2, Some(UniverseOperationOp::Difference)) => {
-                generate_length_and_operation_match_clause_duo!(sets, difference)
-            }
-            (2, Some(UniverseOperationOp::SymmetricDifference)) => {
-                generate_length_and_operation_match_clause_duo!(sets, symmetric_difference)
-            }
-            (3..=usize::MAX, Some(UniverseOperationOp::Union)) => {
-                generate_length_and_operation_match_clause_multi!(sets, union)
-            }
-            (3..=usize::MAX, Some(UniverseOperationOp::Intersection)) => {
-                generate_length_and_operation_match_clause_multi!(sets, intersection)
-            }
-            (3..=usize::MAX, Some(UniverseOperationOp::Difference)) => {
-                generate_length_and_operation_match_clause_multi!(sets, difference)
-            }
-            (3..=usize::MAX, Some(UniverseOperationOp::SymmetricDifference)) => {
-                generate_length_and_operation_match_clause_multi!(sets, symmetric_difference)
-            }
-            (0..=1, _) => return Err(UniverseError::NotEnoughTags),
-            (_, None) => return Err(UniverseError::NoOperationProvided),
+        let (set, op) = match builder.op {
+            Some(UniverseOperationOp::Union) => (
+                generate_length_and_operation_match_clause!(sets, union),
+                UniverseOperationOp::Union,
+            ),
+            Some(UniverseOperationOp::Intersection) => (
+                generate_length_and_operation_match_clause!(sets, intersection),
+                UniverseOperationOp::Intersection,
+            ),
+            Some(UniverseOperationOp::Difference) => (
+                generate_length_and_operation_match_clause!(sets, difference),
+                UniverseOperationOp::Difference,
+            ),
+            Some(UniverseOperationOp::SymmetricDifference) => (
+                generate_length_and_operation_match_clause!(sets, symmetric_difference),
+                UniverseOperationOp::SymmetricDifference,
+            ),
+            None => return Err(UniverseError::NoOperationProvided),
         };
+
+        let group_composition = match tags {
+            (TagName::Primary(_), TagName::Primary(_)) => TagGroupComposition::Primary,
+            (TagName::Primary(_), TagName::Secondary(_)) => TagGroupComposition::PrimaryAndSecondary,
+            (TagName::Secondary(_), TagName::Secondary(_)) => TagGroupComposition::Secondary,
+            (TagName::Secondary(_), TagName::Primary(_)) => TagGroupComposition::SecondaryAndPrimary,
+        };
+
+        Ok(match (group_composition, op) {
+            (
+                TagGroupComposition::Primary
+                | TagGroupComposition::PrimaryAndSecondary
+                | TagGroupComposition::Secondary
+                | TagGroupComposition::SecondaryAndPrimary,
+                UniverseOperationOp::Union,
+            ) => Tag::Secondary(set),
+
+            (
+                TagGroupComposition::Primary
+                | TagGroupComposition::PrimaryAndSecondary
+                | TagGroupComposition::SecondaryAndPrimary,
+                UniverseOperationOp::Intersection,
+            ) => Tag::Primary(set),
+            (TagGroupComposition::Secondary, UniverseOperationOp::Intersection) => {
+                Tag::Secondary(set)
+            }
+
+            (
+                TagGroupComposition::Primary | TagGroupComposition::PrimaryAndSecondary,
+                UniverseOperationOp::Difference,
+            ) => Tag::Primary(set),
+            (
+                TagGroupComposition::Secondary | TagGroupComposition::SecondaryAndPrimary,
+                UniverseOperationOp::Difference,
+            ) => Tag::Secondary(set),
+
+            (TagGroupComposition::Primary, UniverseOperationOp::SymmetricDifference) => {
+                Tag::Primary(set)
+            }
+            (
+                TagGroupComposition::PrimaryAndSecondary
+                | TagGroupComposition::Secondary
+                | TagGroupComposition::SecondaryAndPrimary,
+                UniverseOperationOp::SymmetricDifference,
+            ) => Tag::Secondary(set),
+        })
     }
 }
