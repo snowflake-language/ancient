@@ -34,8 +34,44 @@
 //! [mathematical set]: https://en.wikipedia.org/wiki/Set_theory
 //! [venn diagram]: https://en.wikipedia.org/wiki/Venn_diagram
 
+#![allow(clippy::cognitive_complexity)]
+#![warn(clippy::cargo_common_metadata)]
+#![warn(clippy::dbg_macro)]
+#![warn(clippy::explicit_deref_methods)]
+#![warn(clippy::filetype_is_file)]
+#![warn(clippy::imprecise_flops)]
+#![warn(clippy::large_stack_arrays)]
+#![warn(clippy::todo)]
+#![warn(clippy::unimplemented)]
+#![deny(clippy::await_holding_lock)]
+#![deny(clippy::cast_lossless)]
+#![deny(clippy::clone_on_ref_ptr)]
+#![deny(clippy::doc_markdown)]
+#![deny(clippy::empty_enum)]
+#![deny(clippy::enum_glob_use)]
+#![deny(clippy::exit)]
+#![deny(clippy::explicit_into_iter_loop)]
+#![deny(clippy::explicit_iter_loop)]
+#![deny(clippy::fallible_impl_from)]
+#![deny(clippy::inefficient_to_string)]
+#![deny(clippy::large_digit_groups)]
+#![deny(clippy::wildcard_dependencies)]
+#![deny(clippy::wildcard_imports)]
+#![deny(clippy::unused_self)]
+#![deny(clippy::single_match_else)]
+#![deny(clippy::option_option)]
+#![deny(clippy::mut_mut)]
+#![feature(bool_to_option)]
+#![feature(const_fn)]
+#![feature(decl_macro)]
+#![feature(concat_idents)]
+#![feature(or_patterns)]
+
 use id_arena::{Arena, ArenaBehavior, DefaultArenaBehavior};
-use sdset::{Error as SdsetError, Set};
+use sdset::{
+    duo::OpBuilder as DuoOpBuilder, multi::OpBuilder as MultiOpBuilder, Error as SdsetError, Set,
+    SetOperation,
+};
 use std::{borrow::Cow, clone::Clone, collections::hash_map::HashMap};
 use thiserror::Error;
 
@@ -97,7 +133,7 @@ where
 #[derive(Debug, Default, Clone)]
 pub struct Binding<'a, T>
 where
-    T: Clone,
+    T: Default + Clone,
 {
     pub name: Cow<'a, str>,
     pub value: T,
@@ -105,14 +141,14 @@ where
 
 impl<'a, T> PartialEq for Binding<'a, T>
 where
-    T: Clone,
+    T: Default + Clone,
 {
     fn eq(&self, other: &Self) -> bool {
         self.name == other.name
     }
 }
 
-impl<'a, T: Clone> Eq for Binding<'a, T> {}
+impl<'a, T: Default + Clone> Eq for Binding<'a, T> {}
 
 /// A tag's name. Used to key names to the corresponding tags in a [`HashMap`] without special
 /// syntax (i.e. `*`, which is used to denote a primary one in snowflake itself)
@@ -136,7 +172,7 @@ pub enum TagName<'a> {
 #[derive(Debug, PartialEq, Eq)]
 pub enum Tag<'a, T>
 where
-    T: Clone,
+    T: Default + Clone,
 {
     Primary(Vec<<DefaultArenaBehavior<Binding<'a, T>> as ArenaBehavior>::Id>),
     Secondary(Vec<<DefaultArenaBehavior<Binding<'a, T>> as ArenaBehavior>::Id>),
@@ -144,7 +180,7 @@ where
 
 impl<'a, T> Tag<'a, T>
 where
-    T: Clone,
+    T: Default + Clone,
 {
     /// Retrieves a reference to the inner vector of the [`Tag`] as a [`Set`]. If the vector is not
     /// sorted, then it will fail. Because of this, it is recommended to call [`Tag::sort`] before
@@ -187,6 +223,38 @@ where
     /// [`Tag::set`]: ./enum.Tag.html#method.set
     pub fn sort(&mut self) {
         self.as_mut_slice().sort();
+    }
+}
+
+/// An enumeration over possible operations for a [`UniverseOperationBuilder`] to use
+///
+/// [`UniverseOperationBuilder`]: ./struct.UniverseOperationBuilder.html
+#[derive(Debug)]
+pub enum UniverseOperationOp {
+    Union,
+    Intersection,
+    Difference,
+    SymmetricDifference,
+}
+
+/// A builder type for a [`UniverseOperationOp`]
+///
+/// [`UniverseOperationOp`]: ./struct.UniverseOperationOp.html
+#[derive(Debug, Default)]
+pub struct UniverseOperationBuilder<'a> {
+    sets: Vec<TagName<'a>>,
+    op: Option<UniverseOperationOp>,
+}
+
+impl<'a> UniverseOperationBuilder<'a> {
+    pub fn push(&mut self, tag: TagName<'a>) -> &mut Self {
+        self.sets.push(tag);
+        self
+    }
+
+    pub fn set_operation(&mut self, op: UniverseOperationOp) -> &mut Self {
+        self.op = Some(op);
+        self
     }
 }
 
@@ -267,6 +335,28 @@ pub enum UniverseError {
     /// [`Universe`]: ./struct.Universe.html
     #[error("The provided binding name is already in use")]
     BindingAlreadyExists,
+
+    /// An error returned if no [`Tag`] corresponds to the provided [`TagName`]
+    ///
+    /// [`Tag`]: ./enum.Tag.html
+    /// [`TagName`]: ./enum.TagName.html
+    #[error("The provided TagName has no corresponding Tag")]
+    InvalidTagName,
+
+    /// An error returned if not enough [`Tag`]s were provided to a [`UniverseOperationBuilder`]
+    ///
+    /// [`Tag`]: ./enum.Tag.html
+    /// [`UniverseOperationBuilder`]: ./struct.UniverseOperationBuilder.html
+    #[error("Not enough Tags were provided")]
+    NotEnoughTags,
+
+    /// An error returned if no [`UniverseOperationOp`] was provided to a
+    /// [`UniverseOperationBuilder`]
+    ///
+    /// [`UniverseOperationOp`]: ./enum.UniverseOperationOp.html
+    /// [`UniverseOperationBuilder`]: ./struct.UniverseOperationBuilder.html
+    #[error("No UniverseOperationOp was provided")]
+    NoOperationProvided,
 
     /// An error that may be encountered while working with the sdset library
     #[error("An error was encountered while using the `sdset` library")]
@@ -358,5 +448,78 @@ where
             binding,
             tags: builder.tags,
         })
+    }
+
+    /// Performs an operation over the [`Universe`] using a [`UniverseOperationBuilder`] and
+    /// returns the resulting [`Tag`]
+    ///
+    /// [`Universe`]: ./struct.Universe.html
+    /// [`UniverseOperationBuilder`]: ./struct.UniverseOperationBuilder.html
+    /// [`Tag`]: ./enum.Tag.html
+    pub fn execute<F>(&mut self, f: F) -> Result<Tag<T>, UniverseError>
+    where
+        F: for<'b> FnOnce(
+            &'b mut UniverseOperationBuilder<'a>,
+        ) -> &'b mut UniverseOperationBuilder<'a>,
+    {
+        let mut builder = UniverseOperationBuilder::default();
+        f(&mut builder);
+
+        let sets: Vec<&Set<<DefaultArenaBehavior<Binding<'a, T>> as ArenaBehavior>::Id>> = builder
+            .sets
+            .into_iter()
+            .map(|t| {
+                Ok(self
+                    .tags
+                    .get(&t)
+                    .ok_or(UniverseError::InvalidTagName)?
+                    .as_set()?)
+            })
+            .collect()?;
+
+        macro generate_length_and_operation_match_clause_duo($sets:ident, $op:ident) {{
+            let vec = Vec::new();
+            DuoOpBuilder::new($sets[0], $sets[1])
+                .$op()
+                .extend_collection(&mut vec);
+            vec
+        }}
+
+        macro generate_length_and_operation_match_clause_multi($sets:ident, $op:ident) {{
+            let vec = Vec::new();
+            MultiOpBuilder::from_vec($sets)
+                .$op()
+                .extend_collection(&mut vec);
+            vec
+        }}
+
+        let set = match (sets.len(), builder.op) {
+            (2, Some(UniverseOperationOp::Union)) => {
+                generate_length_and_operation_match_clause_duo!(sets, union)
+            }
+            (2, Some(UniverseOperationOp::Intersection)) => {
+                generate_length_and_operation_match_clause_duo!(sets, intersection)
+            }
+            (2, Some(UniverseOperationOp::Difference)) => {
+                generate_length_and_operation_match_clause_duo!(sets, difference)
+            }
+            (2, Some(UniverseOperationOp::SymmetricDifference)) => {
+                generate_length_and_operation_match_clause_duo!(sets, symmetric_difference)
+            }
+            (3..=usize::MAX, Some(UniverseOperationOp::Union)) => {
+                generate_length_and_operation_match_clause_multi!(sets, union)
+            }
+            (3..=usize::MAX, Some(UniverseOperationOp::Intersection)) => {
+                generate_length_and_operation_match_clause_multi!(sets, intersection)
+            }
+            (3..=usize::MAX, Some(UniverseOperationOp::Difference)) => {
+                generate_length_and_operation_match_clause_multi!(sets, difference)
+            }
+            (3..=usize::MAX, Some(UniverseOperationOp::SymmetricDifference)) => {
+                generate_length_and_operation_match_clause_multi!(sets, symmetric_difference)
+            }
+            (0..=1, _) => return Err(UniverseError::NotEnoughTags),
+            (_, None) => return Err(UniverseError::NoOperationProvided),
+        };
     }
 }
