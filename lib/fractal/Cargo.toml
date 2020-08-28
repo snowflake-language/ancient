@@ -1,0 +1,9 @@
+[package]
+name = "fractal"
+version = "0.1.0"
+authors = ["Skylar Bleed <monarrk@aaathats3as.com>"]
+edition = "2018"
+
+[dependencies]
+parser = { path = "../parser" }
+tag = { path = "../tag" }
