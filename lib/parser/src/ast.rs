@@ -13,7 +13,7 @@ use num_bigint::BigInt;
 // while anything can be a statement, I think a goal should be that
 // anything can return a value
 // - @bree
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
     FnDecl {
         name: String,
@@ -27,7 +27,13 @@ pub enum Statement {
     Expression(Expression),
 }
 
-#[derive(Debug, PartialEq)]
+impl Default for Statement {
+    fn default() -> Self {
+        Statement::Expression(Expression::default())
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum Type {
     FnSig {
         args: Vec<Box<Type>>,
@@ -37,7 +43,7 @@ pub enum Type {
     Identifier(String),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Expression {
     OpCall {
         op: OpSymbol,
@@ -51,10 +57,16 @@ pub enum Expression {
     Identifier(String),
 }
 
+impl Default for Expression {
+    fn default() -> Self {
+        Expression::Identifier(String::new())
+    }
+}
+
 // named OpSymbol so it has some "genericness" for future use
 // in something like macros
 // - @bree
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum OpSymbol {
     Plus,
     Minus,
