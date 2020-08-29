@@ -129,4 +129,31 @@ mod test {
             ]
         )
     }
+
+    #[test]
+    fn test_lex_newlines() {
+        let input = indoc! {"
+            abc
+                a
+                b
+                c
+        "};
+
+        let lexed: Vec<Token> = lex(input).map(|t| t.unwrap().1).collect();
+        assert_eq!(
+            lexed,
+            vec![
+                Token::Identifier(String::from("abc")),
+                Token::Newline,
+                Token::Indent,
+                Token::Identifier(String::from("a")),
+                Token::Newline,
+                Token::Identifier(String::from("b")),
+                Token::Newline,
+                Token::Identifier(String::from("c")),
+                Token::Newline,
+                Token::Dedent,
+            ]
+        )
+    }
 }

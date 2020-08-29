@@ -24,6 +24,10 @@ pub enum Statement {
         name: String,
         body: Type,
     },
+    ValueDecl {
+        pat: Pattern,
+        expr: Expression,
+    },
     Expression(Expression),
 }
 
@@ -55,8 +59,18 @@ pub enum Expression {
         pat: Pattern,
         body: Vec<Box<Statement>>,
     },
+    ValueDecl {
+        pat: Pattern,
+        expr: Box<Expression>,
+    },
+    ValueAssign {
+        pat: Pattern,
+        expr: Box<Expression>,
+    },
     Integer(BigInt),
     Identifier(String),
+    StringLiteral(String),
+    List(Vec<Box<Expression>>),
 }
 
 #[derive(Debug, PartialEq)]
@@ -68,6 +82,7 @@ pub enum Pattern {
     },
     Integer(BigInt),
     Identifier(String),
+    StringLiteral(String),
 }
 
 // named OpSymbol so it has some "genericness" for future use
@@ -79,4 +94,6 @@ pub enum OpSymbol {
     Minus,
     Star,
     ForwardSlash,
+    LAngleBracket,
+    RAngleBracket,
 }

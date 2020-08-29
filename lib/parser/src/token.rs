@@ -24,6 +24,9 @@ pub enum Token {
 
     #[regex("[0-9][0-9_]*", |lex| lex.slice().parse())]
     Integer(BigInt),
+    // todo: remove ""
+    #[regex("\"[^\"]+\"", |lex| lex.slice().parse())]
+    StringLiteral(String),
 
     // replaced with inserted tokens
     #[regex("\n(  )*", |lex| ((lex.slice().len() - 1) / 2))]
@@ -31,6 +34,9 @@ pub enum Token {
 
     #[token("match")]
     Match,
+
+    #[token("let")]
+    Let,
 
     // todo: eventually give proper names to some of these
     // "non-symbol" character combinations
@@ -58,8 +64,11 @@ pub enum Token {
     #[regex(r"[!-/:-@\[-`{-~()_<>]", lex_char)]
     Symbol(char),
 
-    #[error(|lex| lex.slice().parse())]
-    Unknown,
+    #[regex(r".", lex_char, priority = 0)]
+    Unknown(char),
+
+    #[error]
+    LexError,
 
     // inserted tokens
     Newline,
@@ -81,6 +90,10 @@ mod tests {
             fib n => match n =>
               ..2 => n
               _ => (fib n - 1) + (fib n - 2)
+
+            main =>
+              println \"Hello World!\"
+              println fib 5
         "};
         let tokens: Vec<_> = Token::lexer(source).collect();
         assert_eq!(
@@ -120,7 +133,18 @@ mod tests {
                 Integer(BigInt::from(2)),
                 Symbol(')'),
                 // the final newline is from indoc
-                Indentation(0)
+                Indentation(0),
+                Indentation(0),
+                Identifier(String::from("main")),
+                LargeArrowRight,
+                Indentation(1),
+                Identifier(String::from("println")),
+                StringLiteral(String::from("\"Hello World!\"")),
+                Indentation(1),
+                Identifier(String::from("println")),
+                Identifier(String::from("fib")),
+                Integer(BigInt::from(5)),
+                Indentation(0),
             ]
         )
     }

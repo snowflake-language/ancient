@@ -309,6 +309,36 @@ mod test {
         }
     }
 
+    // todo: needs actual tests
+    #[test]
+    fn should_parse() {
+        // mix/copy from rust and haskell one lol
+        // todo:
+        let bad_example = indoc! {"
+            question :: string string -> string
+            question prompt valid =>
+                println prompt
+                match len valid > 0 => 
+                    true => print \"(\" join valid \",\" \")\"
+                
+                print \": \"
+                flush stdout
+                let input = read_line stdin
+                match contains line valid =>
+                    true => return input
+                
+                println input \" is not a valid answer!\"
+                question prompt valid
+            
+            main =>
+                question \"foo\" [\"bar\", \"baz\"]
+            
+        "};
+
+        let input = lexer::lex(bad_example);
+        ProgramParser::new().parse(input);
+    }
+
     #[test]
     fn parse_program() {
         let type_decl_input = indoc! {"
