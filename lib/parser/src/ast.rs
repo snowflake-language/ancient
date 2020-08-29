@@ -67,6 +67,10 @@ pub enum Expression {
         pat: Pattern,
         expr: Box<Expression>,
     },
+    TypeDecl {
+        ty: Type,
+        expr: Box<Expression>,
+    },
     Integer(BigInt),
     Identifier(String),
     StringLiteral(String),

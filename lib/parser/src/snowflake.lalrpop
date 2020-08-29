@@ -183,6 +183,10 @@ pub CircumfixCall: ast::Expression = {
 
 // note(@bree): possibly future use, may remove.
 pub Atom: ast::Expression = {
+    "(" <expr:Expression> ")" "::" <ty:TypeLiteral> => ast::Expression::TypeDecl {
+        ty: ty,
+        expr: Box::new(expr),
+    },
     "(" <e:Expression> ")" => e,
     Literal,
 }

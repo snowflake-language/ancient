@@ -336,7 +336,7 @@ mod test {
         "};
 
         let input = lexer::lex(bad_example);
-        ProgramParser::new().parse(input);
+        let _program = ProgramParser::new().parse(input);
     }
 
     #[test]
@@ -549,6 +549,33 @@ mod test {
                         ]
                     },
                 ]
+            }
+        }
+    }
+
+    #[test]
+    fn expr_type_decl() {
+        test_parse! {
+            ExpressionParser where
+            "(1 + 1) :: Int" => Expression::TypeDecl {
+                ty: "Int".into(),
+                expr: Box::new(ops(1, OpSymbol::Plus, 1))
+            },
+            "(add (1) :: Int (2) :: Int) :: Int" => Expression::TypeDecl {
+                ty: "Int".into(),
+                expr: Box::new(Expression::FnCall {
+                    name: "add".into(),
+                    args: vec![
+                        Expression::TypeDecl {
+                            ty: "Int".into(),
+                            expr: Box::new(1.into())
+                        },
+                        Expression::TypeDecl {
+                            ty: "Int".into(),
+                            expr: Box::new(2.into())
+                        }
+                    ]
+                })
             }
         }
     }
