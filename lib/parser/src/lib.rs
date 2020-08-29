@@ -33,6 +33,7 @@ mod test {
     use ast;
     use ast::Expression;
     use ast::OpSymbol;
+    use ast::Pattern;
     use ast::Statement;
     use ast::Type;
     use indoc::indoc;
@@ -72,6 +73,18 @@ mod test {
     impl<'a> From<&'a str> for ast::Statement {
         fn from(s: &'a str) -> Self {
             ast::Statement::Expression(s.into())
+        }
+    }
+
+    impl From<isize> for ast::Pattern {
+        fn from(i: isize) -> Self {
+            ast::Pattern::Integer(i.into())
+        }
+    }
+
+    impl<'a> From<&'a str> for ast::Pattern {
+        fn from(s: &'a str) -> Self {
+            ast::Pattern::Identifier(s.into())
         }
     }
 
@@ -296,6 +309,36 @@ mod test {
         }
     }
 
+    // todo: needs actual tests
+    #[test]
+    fn should_parse() {
+        // mix/copy from rust and haskell one lol
+        // todo:
+        let bad_example = indoc! {"
+            question :: string string -> string
+            question prompt valid =>
+                println prompt
+                match len valid > 0 => 
+                    true => print \"(\" join valid \",\" \")\"
+                
+                print \": \"
+                flush stdout
+                let input = read_line stdin
+                match contains line valid =>
+                    true => return input
+                
+                println input \" is not a valid answer!\"
+                question prompt valid
+            
+            main =>
+                question \"foo\" [\"bar\", \"baz\"]
+            
+        "};
+
+        let input = lexer::lex(bad_example);
+        let _program = ProgramParser::new().parse(input);
+    }
+
     #[test]
     fn parse_program() {
         let type_decl_input = indoc! {"
@@ -430,6 +473,109 @@ mod test {
                     ],
                     ret: Box::new("int".into())
                 },
+            }
+        }
+    }
+
+    #[test]
+    fn parse_pattern() {
+        test_parse! {
+            MatchPartParser where
+            "name => 1 + 1\n" => Expression::Destructure {
+                pat: "name".into(),
+                body: vec![
+                    Box::new(Statement::Expression(
+                        ops(1, OpSymbol::Plus, 1)
+                    ))
+                ]
+            },
+            "_ => 1 + 1\n" => Expression::Destructure {
+                pat: Pattern::Wildcard,
+                body: vec![
+                    Box::new(Statement::Expression(
+                        ops(1, OpSymbol::Plus, 1)
+                    ))
+                ]
+            },
+            "0..2 => 1 + 1\n" => Expression::Destructure {
+                pat: Pattern::Range {
+                    start: Some(Box::new(0.into())),
+                    end: Some(Box::new(2.into()))
+                },
+                body: vec![
+                    Box::new(Statement::Expression(
+                        ops(1, OpSymbol::Plus, 1)
+                    ))
+                ]
+            }
+        }
+    }
+
+    #[test]
+    fn parse_match() {
+        let expr = indoc! {"
+            match n =>
+                0 => n
+                1 => n
+                _ => fib n
+        "};
+
+        test_parse! {
+            MatchParser where
+            expr => Expression::Match {
+                expr: Box::new("n".into()),
+                args: vec![
+                    Expression::Destructure {
+                        pat: 0.into(),
+                        body: vec![
+                            Box::new(Statement::Expression("n".into())),
+                        ]
+                    },
+                    Expression::Destructure {
+                        pat: 1.into(),
+                        body: vec![
+                            Box::new(Statement::Expression("n".into())),
+                        ]
+                    },
+                    Expression::Destructure {
+                        pat: Pattern::Wildcard,
+                        body: vec![
+                            Box::new(Statement::Expression(
+                                Expression::FnCall {
+                                    name: "fib".into(),
+                                    args: vec!["n".into()]
+                                }
+                            )),
+                        ]
+                    },
+                ]
+            }
+        }
+    }
+
+    #[test]
+    fn expr_type_decl() {
+        test_parse! {
+            ExpressionParser where
+            "(1 + 1) :: Int" => Expression::TypeDecl {
+                ty: "Int".into(),
+                expr: Box::new(ops(1, OpSymbol::Plus, 1))
+            },
+            "(add (1) :: Int (2) :: Int) :: Int" => Expression::TypeDecl {
+                ty: "Int".into(),
+                expr: Box::new(Expression::FnCall {
+                    name: "add".into(),
+                    args: vec![
+                        Expression::TypeDecl {
+                            ty: "Int".into(),
+                            expr: Box::new(1.into())
+                        },
+                        Expression::TypeDecl {
+                            ty: "Int".into(),
+                            expr: Box::new(2.into())
+                        }
+                    ]
+                })
             }
         }
     }

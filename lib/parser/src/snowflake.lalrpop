@@ -68,6 +68,7 @@ pub TypeLiteral: ast::Type = {
 pub Statement: ast::Statement = {
     TypeStatement,
     FnDecl,
+    ValueDeclStatement,
     // Expression => ast::Statement::Expression(<>)
 }
 
@@ -75,7 +76,68 @@ pub FnDecl: ast::Statement = {
     <name:Identifier> <args:Identifier*> "=>" <body:Block> => ast::Statement::FnDecl {
         name: name,
         args: args,
-        body: body
+        body: body,
+    }
+}
+
+pub ValueDeclStatement: ast::Statement =  {
+    "let" <p:Pattern> "=" <e:Expression> => ast::Statement::ValueDecl {
+        pat: p,
+        expr: e
+    }
+}
+
+
+pub Match: ast::Expression = {
+    "match" <expr:Expression> "=>" <parts:MatchBlock> => ast::Expression::Match {
+        expr: Box::new(expr),
+        args: parts,
+    }
+}
+
+// todo: macro/generic
+pub MatchBlock: Vec<ast::Expression> = {
+    "\n" Indent <patterns:MatchPart+> Dedent => patterns,
+}
+
+pub MatchPart: ast::Expression = {
+    <pat:Pattern> "=>" <body:Block> => ast::Expression::Destructure {
+        pat: pat,
+        body: body,
+    }
+}
+
+pub Pattern: ast::Pattern = {
+    RangePattern,
+    LiteralPattern,
+    WildcardPattern,
+}
+
+pub LiteralPattern: ast::Pattern = {
+    Integer => ast::Pattern::Integer(<>),
+    Identifier => ast::Pattern::Identifier(<>),
+    "String" => ast::Pattern::StringLiteral(<>),
+}
+
+pub RangePattern: ast::Pattern = {
+    <start:LiteralPattern> ".." <end:LiteralPattern> => ast::Pattern::Range {
+        start: Some(Box::new(start)),
+        end: Some(Box::new(end)),
+    }
+}
+
+pub WildcardPattern: ast::Pattern = {
+    "_" => ast::Pattern::Wildcard,
+}
+
+pub ValueDeclExpression: ast::Expression =  {
+    "let" <p:Pattern> "=" <e:Expression> => ast::Expression::ValueDecl {
+        pat: p,
+        expr: Box::new(e)
+    },
+    <p:Pattern> "=" <e:Expression> => ast::Expression::ValueAssign {
+        pat: p,
+        expr: Box::new(e)
     }
 }
 
@@ -85,10 +147,13 @@ pub FnDecl: ast::Statement = {
 pub Expression: ast::Expression = {
     SubExpression,
     FnCall,
+    Match,
+    ValueDeclExpression,
 }
 
 pub SubExpression: ast::Expression = {
     OpCall,
+    CircumfixCall,
 }
 
 pub Block: Vec<Box<ast::Statement>> = {
@@ -111,8 +176,17 @@ pub OpCall: ast::Expression = {
     Atom
 }
 
+// todo: make this not expr, also make List not hardcoded myabe based but macro/ast
+pub CircumfixCall: ast::Expression = {
+    "[" <exprs:ListOf<Expression, ",">> "]" => ast::Expression::List(exprs.into_iter().map(|e| Box::new(e)).collect()),
+}
+
 // note(@bree): possibly future use, may remove.
 pub Atom: ast::Expression = {
+    "(" <expr:Expression> ")" "::" <ty:TypeLiteral> => ast::Expression::TypeDecl {
+        ty: ty,
+        expr: Box::new(expr),
+    },
     "(" <e:Expression> ")" => e,
     Literal,
 }
@@ -130,12 +204,15 @@ pub Op: ast::OpSymbol = {
   "+" => ast::OpSymbol::Plus,
   "-" => ast::OpSymbol::Minus,
   "*" => ast::OpSymbol::Star,
-  "/" => ast::OpSymbol::ForwardSlash
+  "/" => ast::OpSymbol::ForwardSlash,
+  "<" => ast::OpSymbol::LAngleBracket,
+  ">" => ast::OpSymbol::RAngleBracket,
 }
 
 pub Literal: ast::Expression = {
   Integer => ast::Expression::Integer(<>),
-  Identifier => ast::Expression::Identifier(<>)
+  Identifier => ast::Expression::Identifier(<>),
+  "String" => ast::Expression::StringLiteral(<>)
 }
 
 pub Integer: BigInt = {
@@ -146,6 +223,17 @@ pub Identifier: String = {
   "Identifier"
 }
 
+ListOf<Type, Seperator>: Vec<Type> = {
+    <values:(<Type> Seperator)*> <value:Type?> => match value {
+        None => values,
+        Some(value) => {
+            let mut values = values;
+            values.push(value);
+            values
+        }
+    }
+}
+
 extern {
     type Location = usize;
     type Error = String;
@@ -154,14 +242,17 @@ extern {
         "Identifier" => Token::Identifier(<String>),
         "Float" => Token::Float(<f64>),
         "Integer" => Token::Integer(<BigInt>),
+        "String" => Token::StringLiteral(<String>),
+        "match" => Token::Match,
+        "let" => Token::Let,
         "=" => Token::Equal,
+        ".." => Token::DotDot,
         "::" => Token::ColonColon,
         "**" => Token::StarStar,
         "=>" => Token::LargeArrowRight,
         "->" => Token::SmallArrowRight,
         "Whitespace" => Token::Whitespace,
-        "Symbol" => Token::Symbol(<char>),
-        "Unknown" => Token::Unknown,
+        // "Symbol" => Token::Symbol(<char>),
         // indentation
         Indent => Token::Indent,
         Dedent => Token::Dedent,
@@ -169,9 +260,16 @@ extern {
         // symbols
         "(" => Token::Symbol('('),
         ")" => Token::Symbol(')'),
+        "<" => Token::Symbol('<'),
+        ">" => Token::Symbol('>'),
+        "[" => Token::Symbol('['),
+        "]" => Token::Symbol(']'),
         "+" => Token::Symbol('+'),
         "-" => Token::Symbol('-'),
         "*" => Token::Symbol('*'),
-        "/" => Token::Symbol('/')
+        "/" => Token::Symbol('/'),
+        "_" => Token::Symbol('_'),
+        ";" => Token::Symbol(';'),
+        "," => Token::Symbol(','),
     }
 }

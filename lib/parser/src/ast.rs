@@ -24,6 +24,10 @@ pub enum Statement {
         name: String,
         body: Type,
     },
+    ValueDecl {
+        pat: Pattern,
+        expr: Expression,
+    },
     Expression(Expression),
 }
 
@@ -53,8 +57,42 @@ pub enum Expression {
         name: String,
         args: Vec<Expression>,
     },
+    Match {
+        expr: Box<Expression>,
+        args: Vec<Expression>,
+    },
+    Destructure {
+        pat: Pattern,
+        body: Vec<Box<Statement>>,
+    },
+    ValueDecl {
+        pat: Pattern,
+        expr: Box<Expression>,
+    },
+    ValueAssign {
+        pat: Pattern,
+        expr: Box<Expression>,
+    },
+    TypeDecl {
+        ty: Type,
+        expr: Box<Expression>,
+    },
     Integer(BigInt),
     Identifier(String),
+    StringLiteral(String),
+    List(Vec<Box<Expression>>),
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Pattern {
+    Wildcard,
+    Range {
+        start: Option<Box<Pattern>>,
+        end: Option<Box<Pattern>>,
+    },
+    Integer(BigInt),
+    Identifier(String),
+    StringLiteral(String),
 }
 
 impl Default for Expression {
@@ -72,4 +110,6 @@ pub enum OpSymbol {
     Minus,
     Star,
     ForwardSlash,
+    LAngleBracket,
+    RAngleBracket,
 }

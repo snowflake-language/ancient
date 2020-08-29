@@ -19,15 +19,24 @@ pub enum Token {
     #[regex("[a-zA-Z][a-zA-Z1-9_]*", |lex| lex.slice().parse())]
     Identifier(String),
 
-    #[regex(r"[0-9]*\.[0-9]+", |lex| lex.slice().parse())]
+    #[regex(r"[0-9]+\.[0-9]+", |lex| lex.slice().parse())]
     Float(f64),
 
     #[regex("[0-9][0-9_]*", |lex| lex.slice().parse())]
     Integer(BigInt),
+    // todo: remove ""
+    #[regex("\"[^\"]+\"", |lex| lex.slice().parse())]
+    StringLiteral(String),
 
     // replaced with inserted tokens
     #[regex("\n(  )*", |lex| ((lex.slice().len() - 1) / 2))]
     Indentation(usize),
+
+    #[token("match")]
+    Match,
+
+    #[token("let")]
+    Let,
 
     // todo: eventually give proper names to some of these
     // "non-symbol" character combinations
@@ -36,6 +45,9 @@ pub enum Token {
 
     #[token("::")]
     ColonColon,
+
+    #[token("..")]
+    DotDot,
 
     #[token("**")]
     StarStar,
@@ -49,16 +61,20 @@ pub enum Token {
     #[regex(r"\s", logos::skip)]
     Whitespace,
 
-    #[regex(r"[!-/:-@\[-`{-~()]", lex_char)]
+    #[regex(r"[!-/:-@\[-`{-~()_<>]", lex_char)]
     Symbol(char),
 
-    #[error(|lex| lex.slice().parse())]
-    Unknown,
+    #[regex(r".", lex_char, priority = 0)]
+    Unknown(char),
+
+    #[error]
+    LexError,
 
     // inserted tokens
     Newline,
     Indent,
     Dedent,
+    Error(String),
 }
 
 #[cfg(test)]
@@ -71,8 +87,13 @@ mod tests {
     fn lex_test() {
         let source = indoc! {"
             fib :: isize -> isize
-            fib n =>
-              (fib n - 1) + (fib n - 2)
+            fib n => match n =>
+              ..2 => n
+              _ => (fib n - 1) + (fib n - 2)
+
+            main =>
+              println \"Hello World!\"
+              println fib 5
         "};
         let tokens: Vec<_> = Token::lexer(source).collect();
         assert_eq!(
@@ -87,7 +108,17 @@ mod tests {
                 Identifier(String::from("fib")),
                 Identifier(String::from("n")),
                 LargeArrowRight,
+                Match,
+                Identifier(String::from("n")),
+                LargeArrowRight,
                 Indentation(1),
+                DotDot,
+                Integer(BigInt::from(2)),
+                LargeArrowRight,
+                Identifier(String::from("n")),
+                Indentation(1),
+                Symbol('_'),
+                LargeArrowRight,
                 Symbol('('),
                 Identifier(String::from("fib")),
                 Identifier(String::from("n")),
@@ -102,7 +133,18 @@ mod tests {
                 Integer(BigInt::from(2)),
                 Symbol(')'),
                 // the final newline is from indoc
-                Indentation(0)
+                Indentation(0),
+                Indentation(0),
+                Identifier(String::from("main")),
+                LargeArrowRight,
+                Indentation(1),
+                Identifier(String::from("println")),
+                StringLiteral(String::from("\"Hello World!\"")),
+                Indentation(1),
+                Identifier(String::from("println")),
+                Identifier(String::from("fib")),
+                Integer(BigInt::from(5)),
+                Indentation(0),
             ]
         )
     }
