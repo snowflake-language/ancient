@@ -269,6 +269,14 @@ mod test {
                     "a".into(),
                     "b".into(),
                 ]
+            },
+            "add a b c" => Expression::FnCall {
+                name: "add".into(),
+                args: vec![
+                    "a".into(),
+                    "b".into(),
+                    "c".into(),
+                ]
             }
         }
     }
@@ -322,6 +330,7 @@ mod test {
         // mix/copy from rust and haskell one lol
         // todo:
         let bad_example = indoc! {"
+            question :: tag *examples ^ question ^ example
             question :: string string -> string
             question prompt valid =>
                 println prompt

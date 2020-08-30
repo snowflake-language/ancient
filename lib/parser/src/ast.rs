@@ -37,6 +37,7 @@ pub enum Type {
         args: Vec<Box<Type>>,
         ret: Box<Type>,
     },
+    Tag(Tag),
     Nat(BigInt),
     Identifier(String),
 }

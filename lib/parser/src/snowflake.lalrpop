@@ -39,6 +39,7 @@ pub TypeDecl: ast::Statement = {
 pub TypeExpression: ast::Type = {
     SubTypeExpression,
     FnSig,
+    TagDecl => ast::Type::Tag(<>),
 }
 
 pub SubTypeExpression: ast::Type = {
