@@ -208,17 +208,41 @@ pub FnCall: ast::Expression = {
     }
 }
 
-// pub Tag: ast::Tag = {
-//     "tag" <expr:TagExpression> => expr
-// }
+pub TagDecl: ast::Tag = {
+    "tag" <expr:TagExpression> => expr
+}
 
-// pub TagExpression: ast::Tag = {
-//     "(" <e:TagExpression> ")" => e,
-// }
+pub TagExpression: ast::Tag = {
+    TagOpCall,
+}
 
-// pub TagPattern: ast::Tag = {
-//     Identifier => ast::Tag::Identifier(<>),
-// }
+pub TagOpCall: ast::Tag = {
+    <l:TagLiteral> <op:Op> <r:TagOpCall> => ast::Tag::OpCall {
+        op: op,
+        args: vec![Box::new(l), Box::new(r)]
+    },
+    TagAtom,
+}
+
+pub TagAtom: ast::Tag = {
+    "(" <e:TagExpression> ")" => e,
+    TagLiteral
+}
+
+pub TagLiteral: ast::Tag = {
+    "*" <name:Identifier> => ast::Tag::PrimaryIdentifier(name),
+    Identifier => ast::Tag::Identifier(<>)
+}
+
+pub TagAssign: ast::Tag = {
+    "#{" <pats:TagPattern+> "}" => ast::Tag::Assign {
+        pats: pats.into_iter().map(|p| Box::new(p)).collect(),
+    }
+}
+
+pub TagPattern: ast::Tag = {
+    TagLiteral
+}
 
 pub Op: ast::OpSymbol = {
   "+" => ast::OpSymbol::Plus,
@@ -227,6 +251,7 @@ pub Op: ast::OpSymbol = {
   "/" => ast::OpSymbol::ForwardSlash,
   "<" => ast::OpSymbol::LAngleBracket,
   ">" => ast::OpSymbol::RAngleBracket,
+  "^" => ast::OpSymbol::Circumflex,
 }
 
 pub Literal: ast::Expression = {
@@ -274,12 +299,14 @@ extern {
         "match" => Token::Match,
         "let" => Token::Let,
         "in" => Token::In,
+        "tag" => Token::Tag,
         "=" => Token::Equal,
         ".." => Token::DotDot,
         "::" => Token::ColonColon,
         "**" => Token::StarStar,
         "=>" => Token::LargeArrowRight,
         "->" => Token::SmallArrowRight,
+        "#{" => Token::SmallArrowRight,
         "Whitespace" => Token::Whitespace,
         // "Symbol" => Token::Symbol(<char>),
         // indentation
@@ -293,6 +320,8 @@ extern {
         ">" => Token::Symbol('>'),
         "[" => Token::Symbol('['),
         "]" => Token::Symbol(']'),
+        "{" => Token::Symbol('{'),
+        "}" => Token::Symbol('}'),
         "+" => Token::Symbol('+'),
         "-" => Token::Symbol('-'),
         "*" => Token::Symbol('*'),
@@ -300,5 +329,6 @@ extern {
         "_" => Token::Symbol('_'),
         ";" => Token::Symbol(';'),
         "," => Token::Symbol(','),
+        "^" => Token::Symbol('^'),
     }
 }

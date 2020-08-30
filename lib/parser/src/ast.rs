@@ -90,6 +90,14 @@ pub enum Pattern {
     StringLiteral(String),
 }
 
+#[derive(Debug, PartialEq)]
+pub enum Tag {
+    OpCall { op: OpSymbol, args: Vec<Box<Tag>> },
+    Assign { pats: Vec<Box<Tag>> },
+    PrimaryIdentifier(String),
+    Identifier(String),
+}
+
 // named OpSymbol so it has some "genericness" for future use
 // in something like macros
 // - @bree
@@ -101,4 +109,5 @@ pub enum OpSymbol {
     ForwardSlash,
     LAngleBracket,
     RAngleBracket,
+    Circumflex,
 }

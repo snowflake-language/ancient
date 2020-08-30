@@ -36,6 +36,7 @@ mod test {
     use ast::Pattern;
     use ast::Statement;
     use ast::Type;
+    use ast::Tag;
     use indoc::indoc;
     use num_bigint::BigInt;
     use snowflake::*;
@@ -85,6 +86,12 @@ mod test {
     impl<'a> From<&'a str> for ast::Pattern {
         fn from(s: &'a str) -> Self {
             ast::Pattern::Identifier(s.into())
+        }
+    }
+
+    impl<'a> From<&'a str> for ast::Tag {
+        fn from(s: &'a str) -> Self {
+            ast::Tag::Identifier(s.into())
         }
     }
 
@@ -341,6 +348,7 @@ mod test {
 
     #[test]
     fn assignment_test() {
+        // todo: remove \n requirement after certain expr/statement
         let assign_input = indoc! {"
             add a =>
                 let b = 0 in
@@ -608,6 +616,27 @@ mod test {
                     ]
                 })
             }
+        }
+    }
+
+    #[test]
+    fn tag_decl() {
+        test_parse! {
+            TagDeclParser where
+            "tag a^b" => Tag::OpCall {
+                op: OpSymbol::Circumflex,
+                args: vec![
+                    Box::new("a".into()),
+                    Box::new("b".into())
+                ]
+            },
+            "tag a^(*b)" => Tag::OpCall {
+                op: OpSymbol::Circumflex,
+                args: vec![
+                    Box::new("a".into()),
+                    Box::new(Tag::PrimaryIdentifier("b".into()))
+                ]
+            },
         }
     }
 }

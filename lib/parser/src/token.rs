@@ -41,6 +41,9 @@ pub enum Token {
     #[token("in")]
     In,
 
+    #[token("tag")]
+    Tag,
+
     // todo: eventually give proper names to some of these
     // "non-symbol" character combinations
     #[token("=")]
@@ -60,6 +63,10 @@ pub enum Token {
 
     #[token("->")]
     SmallArrowRight,
+
+    // todo: remove the need for this
+    #[token("#{")]
+    TagStart,
 
     #[regex(r"\s", logos::skip)]
     Whitespace,
@@ -160,6 +167,8 @@ mod tests {
               abc
               123
               in
+              #{}
+              tag
         "};
         let tokens: Vec<_> = Token::lexer(source).collect();
         assert_eq!(
@@ -175,6 +184,11 @@ mod tests {
                 Integer(BigInt::from(123)),
                 Indentation(1),
                 In,
+                Indentation(1),
+                TagStart,
+                Symbol('}'),
+                Indentation(1),
+                Tag,
                 Indentation(0),
             ]
         )
