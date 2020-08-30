@@ -35,8 +35,8 @@ mod test {
     use ast::OpSymbol;
     use ast::Pattern;
     use ast::Statement;
-    use ast::Type;
     use ast::Tag;
+    use ast::Type;
     use indoc::indoc;
     use num_bigint::BigInt;
     use snowflake::*;
@@ -318,7 +318,7 @@ mod test {
 
     // todo: needs actual tests
     #[test]
-    fn should_parse() {
+    fn should_parse_question() {
         // mix/copy from rust and haskell one lol
         // todo:
         let bad_example = indoc! {"
@@ -331,6 +331,7 @@ mod test {
                 print \": \"
                 flush stdout
                 let input = read_line stdin
+                
                 match contains line valid =>
                     true => return input
                 
@@ -343,18 +344,31 @@ mod test {
         "};
 
         let input = lexer::lex(bad_example);
-        let _program = ProgramParser::new().parse(input);
+        let _program = ProgramParser::new().parse(input).unwrap();
+        // assert_eq!(program.is_err(), false)
     }
 
+    #[test]
+    fn should_parse_cat_dog() {
+        let bad_example = indoc! {"
+        let #{ cat_function dog_function } = tag *cat^dog in
+            cat_function dog_function
+        
+        "};
+        let input = lexer::lex(bad_example);
+        let _program = ProgramParser::new().parse(input).unwrap();
+        // assert_eq!(program.is_err(), false)
+    }
+    
     #[test]
     fn assignment_test() {
         // todo: remove \n requirement after certain expr/statement
         let assign_input = indoc! {"
-            add a =>
-                let b = 0 in
-                    a + b
-                
+        add a =>
+            let b = 0 in
+                a + b
             
+        
         "};
 
         test_parse! {
@@ -636,7 +650,7 @@ mod test {
                     Box::new("a".into()),
                     Box::new(Tag::PrimaryIdentifier("b".into()))
                 ]
-            },
+            }
         }
     }
 }

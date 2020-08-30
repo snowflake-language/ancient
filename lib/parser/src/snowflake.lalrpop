@@ -135,10 +135,10 @@ pub ValueDecl: ast::Expression =  {
         body: Some(block)
     },
     // todo: change this because \n is a hack to make this work atm due to ambiguity like "let a = let b ..."
-    // "let" <assign:ValueAssign> "\n" => ast::Expression::ValueDecl {
-    //     assigns: vec![Box::new(assign)],
-    //     body: None
-    // },
+    "let" <assign:ValueAssign> "\n" => ast::Expression::ValueDecl {
+        assigns: vec![Box::new(assign)],
+        body: None
+    },
     ValueAssign,
 }
 
@@ -146,6 +146,10 @@ pub ValueAssign: ast::Expression = {
     <p:Pattern> "=" <e:Expression> => ast::Expression::ValueAssign {
         pat: p,
         expr: Box::new(e)
+    },
+    <pat:TagAssign> "=" <tag:TagDecl> => ast::Expression::TagAssign {
+        tag: pat,
+        expr: tag,
     }
 }
 
@@ -186,7 +190,7 @@ pub OpCall: ast::Expression = {
 
 // todo: make this not expr, also make List not hardcoded myabe based but macro/ast
 pub CircumfixCall: ast::Expression = {
-    "[" <exprs:ListOf<Expression, ",">> "]" => ast::Expression::List(exprs.into_iter().map(|e| Box::new(e)).collect()),
+    "[" <exprs:NonEmptyListOf<Expression, ",">> "]" => ast::Expression::List(exprs.into_iter().map(|e| Box::new(e)).collect()),
 }
 
 // note(@bree): possibly future use, may remove.
@@ -306,7 +310,7 @@ extern {
         "**" => Token::StarStar,
         "=>" => Token::LargeArrowRight,
         "->" => Token::SmallArrowRight,
-        "#{" => Token::SmallArrowRight,
+        "#{" => Token::TagStart,
         "Whitespace" => Token::Whitespace,
         // "Symbol" => Token::Symbol(<char>),
         // indentation

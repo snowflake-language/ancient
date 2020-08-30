@@ -68,6 +68,10 @@ pub enum Expression {
         pat: Pattern,
         expr: Box<Expression>,
     },
+    TagAssign {
+        tag: Tag,
+        expr: Tag
+    },
     TypeDecl {
         ty: Type,
         expr: Box<Expression>,
