@@ -340,6 +340,37 @@ mod test {
     }
 
     #[test]
+    fn assignment_test() {
+        let assign_input = indoc! {"
+            add a =>
+                let b = 0 in
+                    a + b
+                
+            
+        "};
+
+        test_parse! {
+            ProgramParser where
+            assign_input => vec![
+                Statement::FnDecl {
+                    name: "add".into(),
+                    args: vec!["a".into()],
+                    body: vec![
+                        Box::new(Statement::Expression(Expression::ValueDecl {
+                            assigns: vec![Box::new(Expression::ValueAssign {
+                                pat: "b".into(),
+                                expr: Box::new(0.into())
+                            })],
+                            body: Some(vec![Box::new(Statement::Expression(
+                                ops("a", OpSymbol::Plus, "b")
+                            ))])
+                        }))
+                    ]
+                }
+            ]
+        }
+    }
+    #[test]
     fn parse_program() {
         let type_decl_input = indoc! {"
             fib :: isize -> isize

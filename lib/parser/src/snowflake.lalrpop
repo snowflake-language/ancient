@@ -80,11 +80,9 @@ pub FnDecl: ast::Statement = {
     }
 }
 
+// todo: fix this hack
 pub ValueDeclStatement: ast::Statement =  {
-    "let" <p:Pattern> "=" <e:Expression> => ast::Statement::ValueDecl {
-        pat: p,
-        expr: e
-    }
+    ValueDecl => ast::Statement::Expression(<>)
 }
 
 
@@ -130,11 +128,21 @@ pub WildcardPattern: ast::Pattern = {
     "_" => ast::Pattern::Wildcard,
 }
 
-pub ValueDeclExpression: ast::Expression =  {
-    "let" <p:Pattern> "=" <e:Expression> => ast::Expression::ValueDecl {
-        pat: p,
-        expr: Box::new(e)
+pub ValueDecl: ast::Expression =  {
+    // todo: LetIn needs to be transformed into something more usable
+    "let" <assigns:NonEmptyListOf<ValueAssign, ",">> "in" <block:Block> => ast::Expression::ValueDecl {
+        assigns: assigns.into_iter().map(|e| Box::new(e)).collect(),
+        body: Some(block)
     },
+    // todo: change this because \n is a hack to make this work atm due to ambiguity like "let a = let b ..."
+    // "let" <assign:ValueAssign> "\n" => ast::Expression::ValueDecl {
+    //     assigns: vec![Box::new(assign)],
+    //     body: None
+    // },
+    ValueAssign,
+}
+
+pub ValueAssign: ast::Expression = {
     <p:Pattern> "=" <e:Expression> => ast::Expression::ValueAssign {
         pat: p,
         expr: Box::new(e)
@@ -148,7 +156,7 @@ pub Expression: ast::Expression = {
     SubExpression,
     FnCall,
     Match,
-    ValueDeclExpression,
+    ValueDecl,
 }
 
 pub SubExpression: ast::Expression = {
@@ -200,6 +208,18 @@ pub FnCall: ast::Expression = {
     }
 }
 
+// pub Tag: ast::Tag = {
+//     "tag" <expr:TagExpression> => expr
+// }
+
+// pub TagExpression: ast::Tag = {
+//     "(" <e:TagExpression> ")" => e,
+// }
+
+// pub TagPattern: ast::Tag = {
+//     Identifier => ast::Tag::Identifier(<>),
+// }
+
 pub Op: ast::OpSymbol = {
   "+" => ast::OpSymbol::Plus,
   "-" => ast::OpSymbol::Minus,
@@ -221,6 +241,14 @@ pub Integer: BigInt = {
 
 pub Identifier: String = {
   "Identifier"
+}
+
+NonEmptyListOf<Type, Seperator>: Vec<Type> = {
+    <values:(<Type> Seperator)*> <value:Type> => {
+        let mut values = values;
+        values.push(value);
+        values
+    }
 }
 
 ListOf<Type, Seperator>: Vec<Type> = {
@@ -245,6 +273,7 @@ extern {
         "String" => Token::StringLiteral(<String>),
         "match" => Token::Match,
         "let" => Token::Let,
+        "in" => Token::In,
         "=" => Token::Equal,
         ".." => Token::DotDot,
         "::" => Token::ColonColon,

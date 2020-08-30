@@ -38,6 +38,9 @@ pub enum Token {
     #[token("let")]
     Let,
 
+    #[token("in")]
+    In,
+
     // todo: eventually give proper names to some of these
     // "non-symbol" character combinations
     #[token("=")]
@@ -156,6 +159,7 @@ mod tests {
               123
               abc
               123
+              in
         "};
         let tokens: Vec<_> = Token::lexer(source).collect();
         assert_eq!(
@@ -169,6 +173,8 @@ mod tests {
                 Identifier(String::from("abc")),
                 Indentation(1),
                 Integer(BigInt::from(123)),
+                Indentation(1),
+                In,
                 Indentation(0),
             ]
         )

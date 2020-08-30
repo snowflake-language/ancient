@@ -24,10 +24,10 @@ pub enum Statement {
         name: String,
         body: Type,
     },
-    ValueDecl {
-        pat: Pattern,
-        expr: Expression,
-    },
+    // ValueDecl {
+    //     pat: Pattern,
+    //     expr: Expression,
+    // },
     Expression(Expression),
 }
 
@@ -60,8 +60,9 @@ pub enum Expression {
         body: Vec<Box<Statement>>,
     },
     ValueDecl {
-        pat: Pattern,
-        expr: Box<Expression>,
+        // value assignments
+        assigns: Vec<Box<Expression>>,
+        body: Option<Vec<Box<Statement>>>,
     },
     ValueAssign {
         pat: Pattern,
