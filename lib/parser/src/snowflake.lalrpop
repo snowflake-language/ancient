@@ -39,6 +39,7 @@ pub TypeDecl: ast::Statement = {
 pub TypeExpression: ast::Type = {
     SubTypeExpression,
     FnSig,
+    TagDecl => ast::Type::Tag(<>),
 }
 
 pub SubTypeExpression: ast::Type = {
@@ -80,11 +81,9 @@ pub FnDecl: ast::Statement = {
     }
 }
 
+// todo: fix this hack
 pub ValueDeclStatement: ast::Statement =  {
-    "let" <p:Pattern> "=" <e:Expression> => ast::Statement::ValueDecl {
-        pat: p,
-        expr: e
-    }
+    ValueDecl => ast::Statement::Expression(<>)
 }
 
 
@@ -130,14 +129,28 @@ pub WildcardPattern: ast::Pattern = {
     "_" => ast::Pattern::Wildcard,
 }
 
-pub ValueDeclExpression: ast::Expression =  {
-    "let" <p:Pattern> "=" <e:Expression> => ast::Expression::ValueDecl {
-        pat: p,
-        expr: Box::new(e)
+pub ValueDecl: ast::Expression =  {
+    // todo: LetIn needs to be transformed into something more usable
+    "let" <assigns:NonEmptyListOf<ValueAssign, ",">> "in" <block:Block> => ast::Expression::ValueDecl {
+        assigns: assigns.into_iter().map(|e| Box::new(e)).collect(),
+        body: Some(block)
     },
+    // todo: change this because \n is a hack to make this work atm due to ambiguity like "let a = let b ..."
+    "let" <assign:ValueAssign> "\n" => ast::Expression::ValueDecl {
+        assigns: vec![Box::new(assign)],
+        body: None
+    },
+    ValueAssign,
+}
+
+pub ValueAssign: ast::Expression = {
     <p:Pattern> "=" <e:Expression> => ast::Expression::ValueAssign {
         pat: p,
         expr: Box::new(e)
+    },
+    <pat:TagAssign> "=" <tag:TagDecl> => ast::Expression::TagAssign {
+        tag: pat,
+        expr: tag,
     }
 }
 
@@ -148,7 +161,7 @@ pub Expression: ast::Expression = {
     SubExpression,
     FnCall,
     Match,
-    ValueDeclExpression,
+    ValueDecl,
 }
 
 pub SubExpression: ast::Expression = {
@@ -178,7 +191,7 @@ pub OpCall: ast::Expression = {
 
 // todo: make this not expr, also make List not hardcoded myabe based but macro/ast
 pub CircumfixCall: ast::Expression = {
-    "[" <exprs:ListOf<Expression, ",">> "]" => ast::Expression::List(exprs.into_iter().map(|e| Box::new(e)).collect()),
+    "[" <exprs:NonEmptyListOf<Expression, ",">> "]" => ast::Expression::List(exprs.into_iter().map(|e| Box::new(e)).collect()),
 }
 
 // note(@bree): possibly future use, may remove.
@@ -200,6 +213,42 @@ pub FnCall: ast::Expression = {
     }
 }
 
+pub TagDecl: ast::Tag = {
+    "tag" <expr:TagExpression> => expr
+}
+
+pub TagExpression: ast::Tag = {
+    TagOpCall,
+}
+
+pub TagOpCall: ast::Tag = {
+    <l:TagLiteral> <op:Op> <r:TagOpCall> => ast::Tag::OpCall {
+        op: op,
+        args: vec![Box::new(l), Box::new(r)]
+    },
+    TagAtom,
+}
+
+pub TagAtom: ast::Tag = {
+    "(" <e:TagExpression> ")" => e,
+    TagLiteral
+}
+
+pub TagLiteral: ast::Tag = {
+    "*" <name:Identifier> => ast::Tag::PrimaryIdentifier(name),
+    Identifier => ast::Tag::Identifier(<>)
+}
+
+pub TagAssign: ast::Tag = {
+    "#{" <pats:TagPattern+> "}" => ast::Tag::Assign {
+        pats: pats.into_iter().map(|p| Box::new(p)).collect(),
+    }
+}
+
+pub TagPattern: ast::Tag = {
+    TagLiteral
+}
+
 pub Op: ast::OpSymbol = {
   "+" => ast::OpSymbol::Plus,
   "-" => ast::OpSymbol::Minus,
@@ -207,6 +256,7 @@ pub Op: ast::OpSymbol = {
   "/" => ast::OpSymbol::ForwardSlash,
   "<" => ast::OpSymbol::LAngleBracket,
   ">" => ast::OpSymbol::RAngleBracket,
+  "^" => ast::OpSymbol::Circumflex,
 }
 
 pub Literal: ast::Expression = {
@@ -221,6 +271,14 @@ pub Integer: BigInt = {
 
 pub Identifier: String = {
   "Identifier"
+}
+
+NonEmptyListOf<Type, Seperator>: Vec<Type> = {
+    <values:(<Type> Seperator)*> <value:Type> => {
+        let mut values = values;
+        values.push(value);
+        values
+    }
 }
 
 ListOf<Type, Seperator>: Vec<Type> = {
@@ -245,12 +303,15 @@ extern {
         "String" => Token::StringLiteral(<String>),
         "match" => Token::Match,
         "let" => Token::Let,
+        "in" => Token::In,
+        "tag" => Token::Tag,
         "=" => Token::Equal,
         ".." => Token::DotDot,
         "::" => Token::ColonColon,
         "**" => Token::StarStar,
         "=>" => Token::LargeArrowRight,
         "->" => Token::SmallArrowRight,
+        "#{" => Token::TagStart,
         "Whitespace" => Token::Whitespace,
         // "Symbol" => Token::Symbol(<char>),
         // indentation
@@ -264,6 +325,8 @@ extern {
         ">" => Token::Symbol('>'),
         "[" => Token::Symbol('['),
         "]" => Token::Symbol(']'),
+        "{" => Token::Symbol('{'),
+        "}" => Token::Symbol('}'),
         "+" => Token::Symbol('+'),
         "-" => Token::Symbol('-'),
         "*" => Token::Symbol('*'),
@@ -271,5 +334,6 @@ extern {
         "_" => Token::Symbol('_'),
         ";" => Token::Symbol(';'),
         "," => Token::Symbol(','),
+        "^" => Token::Symbol('^'),
     }
 }

@@ -35,6 +35,7 @@ mod test {
     use ast::OpSymbol;
     use ast::Pattern;
     use ast::Statement;
+    use ast::Tag;
     use ast::Type;
     use indoc::indoc;
     use num_bigint::BigInt;
@@ -85,6 +86,12 @@ mod test {
     impl<'a> From<&'a str> for ast::Pattern {
         fn from(s: &'a str) -> Self {
             ast::Pattern::Identifier(s.into())
+        }
+    }
+
+    impl<'a> From<&'a str> for ast::Tag {
+        fn from(s: &'a str) -> Self {
+            ast::Tag::Identifier(s.into())
         }
     }
 
@@ -262,6 +269,14 @@ mod test {
                     "a".into(),
                     "b".into(),
                 ]
+            },
+            "add a b c" => Expression::FnCall {
+                name: "add".into(),
+                args: vec![
+                    "a".into(),
+                    "b".into(),
+                    "c".into(),
+                ]
             }
         }
     }
@@ -311,10 +326,11 @@ mod test {
 
     // todo: needs actual tests
     #[test]
-    fn should_parse() {
+    fn should_parse_question() {
         // mix/copy from rust and haskell one lol
         // todo:
         let bad_example = indoc! {"
+            question :: tag *examples ^ question ^ example
             question :: string string -> string
             question prompt valid =>
                 println prompt
@@ -324,6 +340,7 @@ mod test {
                 print \": \"
                 flush stdout
                 let input = read_line stdin
+                
                 match contains line valid =>
                     true => return input
                 
@@ -336,9 +353,54 @@ mod test {
         "};
 
         let input = lexer::lex(bad_example);
-        let _program = ProgramParser::new().parse(input);
+        let _program = ProgramParser::new().parse(input).unwrap();
+        // assert_eq!(program.is_err(), false)
     }
 
+    #[test]
+    fn should_parse_cat_dog() {
+        let bad_example = indoc! {"
+        let #{ cat_function dog_function } = tag *cat^dog in
+            cat_function dog_function
+        
+        "};
+        let input = lexer::lex(bad_example);
+        let _program = ProgramParser::new().parse(input).unwrap();
+        // assert_eq!(program.is_err(), false)
+    }
+    
+    #[test]
+    fn assignment_test() {
+        // todo: remove \n requirement after certain expr/statement
+        let assign_input = indoc! {"
+        add a =>
+            let b = 0 in
+                a + b
+            
+        
+        "};
+
+        test_parse! {
+            ProgramParser where
+            assign_input => vec![
+                Statement::FnDecl {
+                    name: "add".into(),
+                    args: vec!["a".into()],
+                    body: vec![
+                        Box::new(Statement::Expression(Expression::ValueDecl {
+                            assigns: vec![Box::new(Expression::ValueAssign {
+                                pat: "b".into(),
+                                expr: Box::new(0.into())
+                            })],
+                            body: Some(vec![Box::new(Statement::Expression(
+                                ops("a", OpSymbol::Plus, "b")
+                            ))])
+                        }))
+                    ]
+                }
+            ]
+        }
+    }
     #[test]
     fn parse_program() {
         let type_decl_input = indoc! {"
@@ -576,6 +638,27 @@ mod test {
                         }
                     ]
                 })
+            }
+        }
+    }
+
+    #[test]
+    fn tag_decl() {
+        test_parse! {
+            TagDeclParser where
+            "tag a^b" => Tag::OpCall {
+                op: OpSymbol::Circumflex,
+                args: vec![
+                    Box::new("a".into()),
+                    Box::new("b".into())
+                ]
+            },
+            "tag a^(*b)" => Tag::OpCall {
+                op: OpSymbol::Circumflex,
+                args: vec![
+                    Box::new("a".into()),
+                    Box::new(Tag::PrimaryIdentifier("b".into()))
+                ]
             }
         }
     }

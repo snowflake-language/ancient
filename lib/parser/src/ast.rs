@@ -24,10 +24,10 @@ pub enum Statement {
         name: String,
         body: Type,
     },
-    ValueDecl {
-        pat: Pattern,
-        expr: Expression,
-    },
+    // ValueDecl {
+    //     pat: Pattern,
+    //     expr: Expression,
+    // },
     Expression(Expression),
 }
 
@@ -43,6 +43,7 @@ pub enum Type {
         args: Vec<Box<Type>>,
         ret: Box<Type>,
     },
+    Tag(Tag),
     Nat(BigInt),
     Identifier(String),
 }
@@ -66,12 +67,17 @@ pub enum Expression {
         body: Vec<Box<Statement>>,
     },
     ValueDecl {
-        pat: Pattern,
-        expr: Box<Expression>,
+        // value assignments
+        assigns: Vec<Box<Expression>>,
+        body: Option<Vec<Box<Statement>>>,
     },
     ValueAssign {
         pat: Pattern,
         expr: Box<Expression>,
+    },
+    TagAssign {
+        tag: Tag,
+        expr: Tag
     },
     TypeDecl {
         ty: Type,
@@ -81,6 +87,12 @@ pub enum Expression {
     Identifier(String),
     StringLiteral(String),
     List(Vec<Box<Expression>>),
+}
+
+impl Default for Expression {
+    fn default() -> Self {
+        Expression::Identifier(String::new())
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -95,10 +107,12 @@ pub enum Pattern {
     StringLiteral(String),
 }
 
-impl Default for Expression {
-    fn default() -> Self {
-        Expression::Identifier(String::new())
-    }
+#[derive(Debug, PartialEq)]
+pub enum Tag {
+    OpCall { op: OpSymbol, args: Vec<Box<Tag>> },
+    Assign { pats: Vec<Box<Tag>> },
+    PrimaryIdentifier(String),
+    Identifier(String),
 }
 
 // named OpSymbol so it has some "genericness" for future use
@@ -112,4 +126,5 @@ pub enum OpSymbol {
     ForwardSlash,
     LAngleBracket,
     RAngleBracket,
+    Circumflex,
 }
