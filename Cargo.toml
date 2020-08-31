@@ -2,7 +2,7 @@
 members = [
   "lib/parser",
   "lib/tag",
-  "lib/diamond",
+  "lib/fractal",
 
   "bin/flurry",
 ]

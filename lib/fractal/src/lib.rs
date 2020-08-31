@@ -4,7 +4,10 @@ use std::process::exit;
 use parser::ast::{Expression, OpSymbol, Statement, Type};
 use tag::{Binding, BindingBuilder, Universe, UniverseBuilder, UniverseError};
 
-fn eval_statement<'a>(
+pub struct Evaluator {
+}
+
+pub fn eval<'a>(
     universe: &mut Universe<'a, Statement>,
     statement: Statement,
 ) -> Result<(), Box<dyn std::error::Error>> {

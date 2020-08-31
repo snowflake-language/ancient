@@ -95,7 +95,7 @@ impl Default for Expression {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Pattern {
     Wildcard,
     Range {
@@ -107,7 +107,7 @@ pub enum Pattern {
     StringLiteral(String),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Tag {
     OpCall { op: OpSymbol, args: Vec<Box<Tag>> },
     Assign { pats: Vec<Box<Tag>> },
@@ -118,7 +118,7 @@ pub enum Tag {
 // named OpSymbol so it has some "genericness" for future use
 // in something like macros
 // - @bree
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum OpSymbol {
     Plus,
     Minus,
