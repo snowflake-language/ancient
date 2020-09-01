@@ -8,3 +8,4 @@ license = "MPL-2.0"
 [dependencies]
 tag = { path = "../../lib/tag" }
 parser = { path = "../../lib/parser" }
+fractal = { path = "../../lib/fractal" }
