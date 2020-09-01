@@ -69,7 +69,7 @@ pub TypeLiteral: ast::Type = {
 pub Statement: ast::Statement = {
     TypeStatement,
     FnDecl,
-    ValueDeclStatement,
+    // ValueDeclStatement,
     // Expression => ast::Statement::Expression(<>)
 }
 
@@ -81,11 +81,10 @@ pub FnDecl: ast::Statement = {
     }
 }
 
-// todo: fix this hack
-pub ValueDeclStatement: ast::Statement =  {
-    ValueDecl => ast::Statement::Expression(<>)
-}
-
+// TODO(superwhiskers): potentially fix this
+// pub ValueDeclStatement: ast::Statement =  {
+//    ValueDecl => ast::Statement::Expression(<>)
+// }
 
 pub Match: ast::Expression = {
     "match" <expr:Expression> "=>" <parts:MatchBlock> => ast::Expression::Match {
@@ -169,13 +168,13 @@ pub SubExpression: ast::Expression = {
     CircumfixCall,
 }
 
-pub Block: Vec<Box<ast::Statement>> = {
+pub Block: Vec<Box<ast::Expression>> = {
     <s:ExpressionStatement> => vec![s],
     "\n" Indent <s:ExpressionStatement+> Dedent => s
 }
 
-pub ExpressionStatement: Box<ast::Statement> = {
-    <e:Expression> "\n" => Box::new(ast::Statement::Expression(e))
+pub ExpressionStatement: Box<ast::Expression> = {
+    <e:Expression> "\n" => Box::new(e)
 }
 
 pub OpCall: ast::Expression = {

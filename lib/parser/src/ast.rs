@@ -18,7 +18,7 @@ pub enum Statement {
     FnDecl {
         name: String,
         args: Vec<String>,
-        body: Vec<Box<Statement>>,
+        body: Vec<Box<Expression>>,
     },
     TypeDecl {
         name: String,
@@ -27,14 +27,7 @@ pub enum Statement {
     // ValueDecl {
     //     pat: Pattern,
     //     expr: Expression,
-    // },
-    Expression(Expression),
-}
-
-impl Default for Statement {
-    fn default() -> Self {
-        Statement::Expression(Expression::default())
-    }
+    // }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -64,12 +57,12 @@ pub enum Expression {
     },
     Destructure {
         pat: Pattern,
-        body: Vec<Box<Statement>>,
+        body: Vec<Box<Expression>>,
     },
     ValueDecl {
         // value assignments
         assigns: Vec<Box<Expression>>,
-        body: Option<Vec<Box<Statement>>>,
+        body: Option<Vec<Box<Expression>>>,
     },
     ValueAssign {
         pat: Pattern,
@@ -87,12 +80,6 @@ pub enum Expression {
     Identifier(String),
     StringLiteral(String),
     List(Vec<Box<Expression>>),
-}
-
-impl Default for Expression {
-    fn default() -> Self {
-        Expression::Identifier(String::new())
-    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
