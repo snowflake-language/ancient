@@ -65,18 +65,6 @@ mod test {
         }
     }
 
-    impl From<isize> for ast::Statement {
-        fn from(i: isize) -> Self {
-            ast::Statement::Expression(i.into())
-        }
-    }
-
-    impl<'a> From<&'a str> for ast::Statement {
-        fn from(s: &'a str) -> Self {
-            ast::Statement::Expression(s.into())
-        }
-    }
-
     impl From<isize> for ast::Pattern {
         fn from(i: isize) -> Self {
             ast::Pattern::Integer(i.into())
@@ -201,7 +189,7 @@ mod test {
                     String::from("b")
                 ],
                 body: vec![
-                    Box::new(Statement::Expression(
+                    Box::new(
                         Expression::OpCall {
                             op: ast::OpSymbol::Plus,
                             args: vec![
@@ -209,14 +197,14 @@ mod test {
                                 Box::new(ast::Expression::from("b"))
                             ]
                         }
-                    ))
+                    )
                 ]
             },
             "add a b =>\n  a + b\n" => Statement::FnDecl {
                 name: "add".into(),
                 args: vec!["a".into(), "b".into()],
                 body: vec![
-                    Box::new(Statement::Expression(
+                    Box::new(
                         Expression::OpCall {
                             op: ast::OpSymbol::Plus,
                             args: vec![
@@ -224,29 +212,29 @@ mod test {
                                 Box::new("b".into())
                             ]
                         }
-                    ))
+                    )
                 ]
             },
             "exp a b => (a * a) + (b * b)\n" => Statement::FnDecl {
                 name: "exp".into(),
                 args: vec!["a".into(), "b".into()],
                 body: vec![
-                    Box::new(Statement::Expression(ops(
+                    Box::new(ops(
                         ops("a", OpSymbol::Star, "a"),
                         OpSymbol::Plus,
                         ops("b", OpSymbol::Star, "b")
-                    )))
+                    ))
                 ]
             },
             "exp a b =>\n  (a * a) + (b * b)\n" => Statement::FnDecl {
                 name: "exp".into(),
                 args: vec!["a".into(), "b".into()],
                 body: vec![
-                    Box::new(Statement::Expression(ops(
+                    Box::new(ops(
                         ops("a", OpSymbol::Star, "a"),
                         OpSymbol::Plus,
                         ops("b", OpSymbol::Star, "b")
-                    )))
+                    ))
                 ]
             }
         }
@@ -312,13 +300,13 @@ mod test {
                     String::from("b")
                 ],
                 body: vec![
-                    Box::new(Statement::Expression(Expression::OpCall {
+                    Box::new(Expression::OpCall {
                         op: ast::OpSymbol::Plus,
                         args: vec![
                             Box::new(Expression::from("a")),
                             Box::new(ast::Expression::from("b"))
                         ]
-                    }))
+                    })
                 ]
             }
         }
@@ -362,10 +350,9 @@ mod test {
         let bad_example = indoc! {"
         let #{ cat_function dog_function } = tag *cat^dog in
             cat_function dog_function
-        
         "};
         let input = lexer::lex(bad_example);
-        let _program = ProgramParser::new().parse(input).unwrap();
+        let _program = ExpressionParser::new().parse(input).unwrap();
         // assert_eq!(program.is_err(), false)
     }
     
@@ -387,15 +374,15 @@ mod test {
                     name: "add".into(),
                     args: vec!["a".into()],
                     body: vec![
-                        Box::new(Statement::Expression(Expression::ValueDecl {
+                        Box::new(Expression::ValueDecl {
                             assigns: vec![Box::new(Expression::ValueAssign {
                                 pat: "b".into(),
                                 expr: Box::new(0.into())
                             })],
-                            body: Some(vec![Box::new(Statement::Expression(
+                            body: Some(vec![Box::new(
                                 ops("a", OpSymbol::Plus, "b")
-                            ))])
-                        }))
+                            )])
+                        })
                     ]
                 }
             ]
@@ -441,7 +428,7 @@ mod test {
                     name: "fib".into(),
                     args: vec!["n".into()],
                     body: vec![
-                        Box::new(Statement::Expression(ops(
+                        Box::new(ops(
                             Expression::FnCall {
                                 name: "fib".into(),
                                 args: vec![
@@ -455,7 +442,7 @@ mod test {
                                     ops("n", OpSymbol::Minus, 2)
                                 ]
                             },
-                        )))
+                        ))
                     ]
                 }
             ],
@@ -473,7 +460,7 @@ mod test {
                     name: "fib".into(),
                     args: vec!["n".into()],
                     body: vec![
-                        Box::new(Statement::Expression(ops(
+                        Box::new(ops(
                             Expression::FnCall {
                                 name: "fib".into(),
                                 args: vec![
@@ -487,7 +474,7 @@ mod test {
                                     ops("n", OpSymbol::Minus, 2)
                                 ]
                             },
-                        )))
+                        ))
                     ]
                 }
             ]
@@ -546,17 +533,17 @@ mod test {
             "name => 1 + 1\n" => Expression::Destructure {
                 pat: "name".into(),
                 body: vec![
-                    Box::new(Statement::Expression(
+                    Box::new(
                         ops(1, OpSymbol::Plus, 1)
-                    ))
+                    )
                 ]
             },
             "_ => 1 + 1\n" => Expression::Destructure {
                 pat: Pattern::Wildcard,
                 body: vec![
-                    Box::new(Statement::Expression(
+                    Box::new(
                         ops(1, OpSymbol::Plus, 1)
-                    ))
+                    )
                 ]
             },
             "0..2 => 1 + 1\n" => Expression::Destructure {
@@ -565,9 +552,9 @@ mod test {
                     end: Some(Box::new(2.into()))
                 },
                 body: vec![
-                    Box::new(Statement::Expression(
+                    Box::new(
                         ops(1, OpSymbol::Plus, 1)
-                    ))
+                    )
                 ]
             }
         }
@@ -590,24 +577,24 @@ mod test {
                     Expression::Destructure {
                         pat: 0.into(),
                         body: vec![
-                            Box::new(Statement::Expression("n".into())),
+                            Box::new("n".into()),
                         ]
                     },
                     Expression::Destructure {
                         pat: 1.into(),
                         body: vec![
-                            Box::new(Statement::Expression("n".into())),
+                            Box::new("n".into()),
                         ]
                     },
                     Expression::Destructure {
                         pat: Pattern::Wildcard,
                         body: vec![
-                            Box::new(Statement::Expression(
+                            Box::new(
                                 Expression::FnCall {
                                     name: "fib".into(),
                                     args: vec!["n".into()]
                                 }
-                            )),
+                            ),
                         ]
                     },
                 ]
