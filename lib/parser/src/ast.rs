@@ -28,6 +28,15 @@ pub enum Statement {
     //     pat: Pattern,
     //     expr: Expression,
     // }
+
+    // dummy field used for implementing Default
+    None,
+}
+
+impl Default for Statement {
+    fn default() -> Self {
+        Self::None
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -39,6 +48,15 @@ pub enum Type {
     Tag(Tag),
     Nat(BigInt),
     Identifier(String),
+
+    // dummy field used for implementing Default
+    None,
+}
+
+impl Default for Type {
+    fn default() -> Self {
+        Self::None
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -105,7 +123,7 @@ pub enum Tag {
 // named OpSymbol so it has some "genericness" for future use
 // in something like macros
 // - @bree
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum OpSymbol {
     Plus,
     Minus,

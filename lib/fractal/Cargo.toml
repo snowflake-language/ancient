@@ -1,9 +1,13 @@
 [package]
 name = "fractal"
 version = "0.1.0"
-authors = ["Skylar Bleed <monarrk@aaathats3as.com>"]
+authors = ["the snowflake authors <whiskerdev@protonmail.com>"]
 edition = "2018"
+license = "MPL-2.0"
 
 [dependencies]
+serde = "^1"
+thiserror = "^1"
+num-bigint = "^0.3"
 parser = { path = "../parser" }
 tag = { path = "../tag" }
