@@ -29,7 +29,7 @@ pub enum Statement {
     //     expr: Expression,
     // }
 
-    // dummy field used for implementing Default
+    // dummy variant used for implementing Default
     None,
 }
 
@@ -39,7 +39,7 @@ impl Default for Statement {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum Type {
     FnSig {
         args: Vec<Box<Type>>,
@@ -49,7 +49,7 @@ pub enum Type {
     Nat(BigInt),
     Identifier(String),
 
-    // dummy field used for implementing Default
+    // dummy variant used for implementing Default
     None,
 }
 
@@ -59,7 +59,7 @@ impl Default for Type {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum Expression {
     OpCall {
         op: OpSymbol,
@@ -100,7 +100,7 @@ pub enum Expression {
     List(Vec<Box<Expression>>),
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum Pattern {
     Wildcard,
     Range {
@@ -112,7 +112,7 @@ pub enum Pattern {
     StringLiteral(String),
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum Tag {
     OpCall { op: OpSymbol, args: Vec<Box<Tag>> },
     Assign { pats: Vec<Box<Tag>> },

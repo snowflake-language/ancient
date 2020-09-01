@@ -1,7 +1,7 @@
 use num_bigint::BigInt;
 use parser::ast::{Expression, OpSymbol, Statement, Tag, Type};
 use std::{borrow::Cow, collections::HashMap};
-use tag::{TagName, Universe, UniverseError, UniverseEntry};
+use tag::{TagName, Universe, UniverseEntry, UniverseError};
 use thiserror::Error;
 
 // this is a hack, remove it
@@ -14,10 +14,13 @@ pub struct EvaluatorConfig<'a> {
 pub struct Evaluator<'a> {
     universe: Universe<'a, UniverseItem>,
     config: EvaluatorConfig<'a>,
-    universe_entries: Vec<UniverseEntry<'a, UniverseItem>>,
+    pub entries: Vec<UniverseEntry<'a, UniverseItem>>,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct TypedExpression(Type, Expression);
+
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum UniverseItem {
     FnDecl {
         sig: Type,
@@ -36,7 +39,18 @@ impl Default for UniverseItem {
 }
 
 impl<'a> Evaluator<'a> {
-    pub fn prepare(&mut self, files: &HashMap<String, Vec<Statement>>) -> Result<(), FractalError> {
+    pub fn new(config: EvaluatorConfig<'a>) -> Self {
+        Self {
+            universe: Universe::default(),
+            config,
+            entries: Vec::new(),
+        }
+    }
+
+    pub fn populate(
+        &mut self,
+        files: &HashMap<String, Vec<Statement>>,
+    ) -> Result<(), FractalError> {
         // a mapping from a primary tag -> binding name -> tags + type + the body
         //
         // the options are required to handle the non-existance of a binding in the map
@@ -144,10 +158,10 @@ impl<'a> Evaluator<'a> {
                         }
                     }
                     // TODO(superwhiskers): actually handle this properly
-                    s => panic!(format!("incomplete binding (missing valid statement, got {:?})", s)),
+                    s => panic!("incomplete binding (missing valid statement, got {:?})", s),
                 };
 
-                self.universe_entries.push(self.universe.insert(|b| {
+                self.entries.push(self.universe.insert(|b| {
                     b.set_name(Cow::Owned(binding_name))
                         .set_value(universe_item);
                     for tag in tags {
@@ -161,14 +175,124 @@ impl<'a> Evaluator<'a> {
         Ok(())
     }
 
-    /*
-    pub fn eval<'a>(
-        &mut self
-        : Statement,
-    ) -> Result<(), FractalError> {
-        Ok(())
+    // evaluate an expression and return the resulting expression
+    pub fn eval_expression(
+        &mut self,
+        local_bindings: &mut HashMap<String, TypedExpression>,
+        expr: &Box<Expression>,
+    ) -> Result<Option<TypedExpression>, FractalError> {
+        Ok(Some(match expr.as_ref() {
+            Expression::Integer(int) => {
+                TypedExpression(Type::Identifier(String::from("ilarge")), Expression::Integer(int.clone()))
+            }
+            Expression::StringLiteral(string) => TypedExpression(
+                Type::Identifier(String::from("string")),
+                Expression::StringLiteral(string.clone()),
+            ),
+            // if an identifier is passed all the way down, it is retrieved from the local bindings
+            // hashamp
+            //
+            // TODO(superwhiskers): remove expect
+            Expression::Identifier(ident) => local_bindings
+                .get(ident)
+                .expect("unable to retrieve the binding from locals")
+                .clone(),
+            Expression::FnCall {
+                name,
+                args,
+            } => {
+                match name.as_str() {
+                    "println" => {
+                        let boxed_arg = Box::new(args.get(0)
+                                    .expect("unable to get the first argument to println").clone());
+                        println!("{}", if args.len() == 0 {
+                            String::from("")
+                        } else {
+                            // TODO(superwhiskers): remove expect
+                            if let TypedExpression(
+                                Type::Identifier(typen),
+                                Expression::StringLiteral(string),
+                            ) = self.eval_expression(
+                                local_bindings,
+                                &boxed_arg,
+                            )?.expect("unable to evaluate to get a string") {
+                                if typen != "string" {
+                                    // TODO(superwhiskers): remove panic
+                                    panic!("expression didn't return string to println");
+                                }
+                                string
+                            } else {
+                                // TODO(superwhiskers): remove panic
+                                panic!("expression didn't return stringliteral to println");
+                            }
+                        });
+                        return Ok(None);
+                    }
+                    _ => panic!("unknown function: {}", name),
+                }
+            }
+            _ => panic!("invalid expression: {:?}", expr),
+        }))
     }
-    */
+
+    // evaluate a UniverseItem::FnDecl and return the resulting expression
+    pub fn eval_fn(
+        &mut self,
+        item: UniverseItem,
+        args: Vec<TypedExpression>,
+    ) -> Result<Option<TypedExpression>, FractalError> {
+        match item {
+            UniverseItem::FnDecl {
+                sig,
+                args: arg_names,
+                body,
+            } => {
+                // create a new binding set
+                let mut bindings = HashMap::new();
+
+                // TODO(superwhiskers): populate local bindings w/ intersected ones from universe
+
+                // populate it with the arguments
+                for i in 0..arg_names.len() {
+                    bindings.insert(
+                        arg_names
+                            .get(i)
+                            .expect("unable to index a vector at an existing indice")
+                            .clone(),
+                        args
+                            .get(i)
+                            .expect("missing argument at indice").clone(),
+                    );
+                }
+
+                let mut last = Ok(None);
+                for expr in &body {
+                    last = self.eval_expression(&mut bindings, expr);
+                }
+
+                last
+            }
+            // TODO(superwhiskers): remove panic
+            _ => panic!("not a function: {:?}", item),
+        }
+    }
+
+    // evaluate a universe entry and return the resutling expression
+    pub fn eval(
+        &mut self,
+        entry: &UniverseEntry<'a, UniverseItem>,
+        args: Vec<TypedExpression>,
+    ) -> Result<Option<TypedExpression>, FractalError> {
+        // TODO(superwhiskers): remove expect
+        self.eval_fn(
+            self.universe
+                .get(entry.binding)
+                .expect("no binding found")
+                .1
+                .clone(),
+            args,
+        )
+    }
 }
 
 /// helper recursive function used to flatten a tag OpCall into an array of TagNames
@@ -177,7 +301,7 @@ pub fn flatten_tag_opcall_to_tagnames<'a>(names: &mut Vec<TagName<'a>>, tag: &Ta
         Tag::OpCall { op, args } => {
             if *op != OpSymbol::Circumflex {
                 // TODO(superwhiskers): remove panic
-                panic!(format!("operator is not `^`, it is {:?}", op));
+                panic!("operator is not `^`, it is {:?}", op);
             } else {
                 for arg in args {
                     flatten_tag_opcall_to_tagnames(names, arg);
