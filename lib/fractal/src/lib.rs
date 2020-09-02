@@ -18,7 +18,7 @@ pub struct Evaluator<'a> {
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]
-pub struct TypedExpression(Type, Expression);
+pub struct TypedExpression(pub Type, pub Expression);
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub enum UniverseItem {
@@ -143,6 +143,7 @@ impl<'a> Evaluator<'a> {
             for (binding_name, binding_value) in primary_members {
                 // match over the Statement kind of it, as that's what the UniverseItem bases the
                 // variant off of
+                println!("binding: {:?}", binding_value);
                 let (universe_item, tags) = match binding_value.2 {
                     Some(Statement::FnDecl { args, body, .. }) => {
                         if let Some(sig) = binding_value.1 {

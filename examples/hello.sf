@@ -1,3 +1,6 @@
-main =>
+main :: ilarge -> ilarge
+main :: tag nothing
+main a =>
   println "Hello world!"
+  69
 

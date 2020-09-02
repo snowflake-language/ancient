@@ -1,15 +1,13 @@
 use std::env;
 use std::fs::File;
-use std::io::{Read, BufRead, BufReader};
+use std::io::{Read};
 use std::process::exit;
 use std::borrow::Cow;
 use std::collections::HashMap;
 
-use fractal::{Evaluator, EvaluatorConfig, UniverseItem};
-use parser::ast::Statement;
-use parser::lexer;
-use parser::snowflake::ProgramParser;
-use tag::{Universe, UniverseEntry, TagName};
+use fractal::{Evaluator, EvaluatorConfig, TypedExpression};
+use parser::{lexer, snowflake::ProgramParser, ast::{Statement, Type, Expression}};
+use tag::{TagName};
 
 // Wrapper for unwrapping Results and printing errors cleanly
 macro_rules! unwrap {
@@ -58,20 +56,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut config = String::new();
     config_file.read_to_string(&mut config)?;
 
-    let mut universe = Universe::<UniverseItem>::default();
-
     let input = lexer::lex(&contents);
     let program = ProgramParser::new().parse(input).unwrap();
 
     let split: Vec<&str> = config.split(":").collect();
     let proj = split[0];
     let mut file_tags: HashMap<String, Vec<TagName>> = HashMap::new();
+    file_tags.insert(args[2].clone(), Vec::new()); // required for evaluator.prepare to work
 
     let conf = EvaluatorConfig {
         project_tag: TagName::Primary(Cow::from(proj)),
-        file_tags: file_tags,
+        file_tags,
     };
-    let evaluator = Evaluator::new(conf);
+    let mut evaluator = Evaluator::new(conf);
+
+    let mut source: HashMap<String, Vec<Statement>> = HashMap::new();
+    source.insert(args[2].clone(), program);
+    evaluator.populate(&source)?;
+
+    let main = evaluator.entries
+        .iter_mut()
+        .filter(|t| t.binding.index() == 0)
+        .next()
+        .unwrap()
+        .clone();
+
+    evaluator.eval(&main, vec![TypedExpression(Type::Identifier(String::from("ilarge")), Expression::Integer(69.into()))])?;
 
     Ok(())
 }

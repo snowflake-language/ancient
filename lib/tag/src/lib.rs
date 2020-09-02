@@ -180,7 +180,7 @@ pub enum TagName<'a> {
 ///
 /// [`Binding`]: ./struct.Binding.html
 /// [`name`]: ./struct.Binding.html#structfield.name
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Tag<'a, T>
 where
     T: Default + Clone,
@@ -240,7 +240,7 @@ where
 /// An enumeration over possible operations for a [`UniverseOperationBuilder`] to use
 ///
 /// [`UniverseOperationBuilder`]: ./struct.UniverseOperationBuilder.html
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum UniverseOperationOp {
     Union,
     Intersection,
@@ -317,6 +317,7 @@ impl UniverseBuilder {
 /// A reference to an entry in a [`Universe`]
 ///
 /// [`Universe`]: ./struct.Universe.html
+#[derive(Clone, Eq, PartialEq, Hash)]
 pub struct UniverseEntry<'a, T>
 where
     T: Default + Clone,
