@@ -1,1 +1,1 @@
-run = "bash -c \"bash <(curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs) -y --default-toolchain nightly; ~/.cargo/bin/cargo build; target/debug/flurry example/hello.sf example/hello.sf.conf\""
+run = "bash -c \"[ -d ~/.cargo ] || bash <(curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs) -y --default-toolchain nightly; ~/.cargo/bin/cargo build; target/debug/flurry example/hello.sf example/hello.sf.conf\""
