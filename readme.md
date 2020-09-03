@@ -1,83 +1,101 @@
 # snowflake
 
-a fast, minimal, and strongly-typed programming language with no hierarchy.
+a fast, low-level, and expressive programming language designed for minimal usage of hierarchy
 
-## experimental notice
+## a brief history
 
-for now, a lot of the syntax is entirely fluid and **can change at any moment**.
-do not expect something that you made as an example of the language's features to
-actually work once a compiler is finished.
+snowflake, the language, originally started as a collection of ideas to improve programming that
+somewhat resembled a mashup of go and rust (more heavily influenced by go at the time, but with the
+lower-level-ness of rust and some additional features superwhiskers, the author, thought would be
+nice to have in go).
 
-## tagging
-tagging is the core idea of snowflake. it's what allows snowflake to be non-hierarchical yet organized.
 
-#### What is a tag?
+![snowflake in 2018](https://256.sh/i/5drn734b.png)
 
-A tag is, in essence, a mathematical set with a few changes. The most important of these changes is that there are two kinds: primary tags and secondary tags.
 
-A primary tag is equivalent to a mathematical sets in all regards, with one exception: the name of the binding must be unique. A secondary tag is the same but without a uniqueness restriction.
+further on in conceptualization, it gradually shifted to be more and more rust-like, until the
+point where it became rust but with a few tweaks such as the removal of ownership to allow for
+fully manual memory management by default, and other extensions (that in hindsight wouldn't make
+sense to create what was essentially a fork to implement).
 
-There is one more change, and that is that due to how tags work (they're collections of bindings from a name to a value), the uniqueness restriction is only enforced on the name of the binding, and not at all on the value.
 
-#### I don't understand this. Can you explain it a little simpler?
+eventually, it shifted to become more like lisp (retaining strong typing and manually managed
+memory) and had some things, such as most types and other unnecessary (in superwhiskers' opinion)
+language items/features stripped out to make a really portable language. in addition, macros were
+buffed to add in an _all-powerful_ file-wide macro kind that could be used to implement alternative
+syntaxes on top of a lispy syntax to allow people to use the language the way they wanted
 
-If you've ever used a venn diagram, they can be visualized in the same way. Tag intersections are where the components overlap, unions are any two components combined, symmetric difference (xor) is everything that doesn't overlap, and so on...
+
+![snowflake but lispy](https://256.sh/i/v2936j95.png)
+
+![snowflake but lispy (no methods)](https://256.sh/i/6tpe2hzh.png)
+
+
+later on, methods were removed (as seen above) and tagging was created/discovered/applied to the
+language. this discovery heavily influenced the language later on, as even though superwhiskers was
+hesitant to apply it everywhere at first, it gradually made its way in, creating the language you
+see today
+
+
+![snowflake but ml](https://256.sh/i/6mjmmz7j.png)
+
+
+more recently, the lispy syntax was outright removed to simplify the parser and make it easier to
+implement, but alternative syntaxes are not completely gone, as they are now intended to be done
+using plugins. however, technically speaking, the current ml-like syntax you see now has existed
+since the lispy one, as it was intended to be the "default syntax", used in most cases as it would
+be drastically easier to work with (typed lisps are a pain).
+
+## the language itself
+
+snowflake is a language designed from the start to be low level. ideally, it should take very
+little to port snowflake to a new platform than c (due to very little types existing in the
+language itself and because it assumes very little about the underlying platform). aside from that,
+other goals/features include (but are not limited to):
+
+- non-hierarchical programming (in both module system and type system)
+- speed (due to the expressiveness of macros and such + optimizations + low-level-ness, one can get
+  more performance out of equivalent code in other languages without needing to rely on the
+  implementation)
+- a primarily functional programming style (without sacrificing speed)
+- clean, easy to read syntax that should be familiar to users of other functional languages
+
+## an explaination of tagging
+
+tagging is essentially applied set theory; it is based entirely upon single-layer collections of
+objects that can have operations applied to them in order to construct new tags. these operations
+can be listed as such:
+
+- intersection, which returns a tag containing all of the common items between the operands
+- union, which returns a tag containing all of the items in both sets regardless of presence
+- difference, which returns a tag containing the items in the first set minus the ones that exist
+  in the second
+- symmetric difference/xor, which returns all of the items not in both sets
+
+aside from that, snowflake tweaks the set theory model to create two kinds of tags: primary and
+secondary tags. primary tags are just mathematical sets, and secondary tags are mathematical sets
+without a uniqueness restriction. there is also one more change, the sets exclusively contain
+name-value bindings (like a map/key-value store/whatever) and primary tags only need to be unique
+on the name
+
+if you don't understand this, you can visualize it like how set theory is taught really early on in
+grade school: as a [venn diagram](https://en.wikipedia.org/wiki/Venn_diagram), where intersections
+are the overlapping parts of components, unions are two components combined, etc...
 
 ## examples
-note: none of these work yet, sorry! this is just a demonstration of how things will likely end up once we get the interpreter implemented
 
-#### hello, world!
-
-```snowflake
-** this is a comment
-let main =>
-	** printing is done through a macro, like rust
-	*println "hello world"
-```
-
-#### potential implementation of [question()](https://github.com/superwhiskers/question)
+### hello world
 
 ```snowflake
-** pretend that io stuff is imported
-question :: &str [&str] -> Unit
-question prompt, valid: [&str] => **[ the stuff beforehand is just a loose approximation ]**
-	let =>
-		input = "",
-		joined_valid = (join ", " valid),
-		reader => io:Reader,
-	_ =>
-		*println prompt
-
-        ** no if (for now); that'll be implemented with a macro later
-		match (len valid) != 0 =>
-            True =>
-			    *print "(" joined_valid "):"
-            _ =>
-                Unit
-		*print ": "
-
-        read_line input
-
-        match (len valid) != 0 =>
-            True =>
-                return input
-            _ =>
-                Unit
-        
-        *foreach ele valid =>
-            match ele == input =>
-                True =>
-                    return input
-                _ =>
-                    Unit
-                    
-        *print input " is not a valid answer!"
-        question prompt valid
+def main =>
+    *println "hello, world"
 ```
 
-## features
+(there isn't much else that isn't likely to change)
 
-- low-level (relative to other languages) but with the syntax of a high level language
-- mostly functional in terms of paradigm
-- heavily abstractable (operator overloading, traits (potentially), declarative macros, procedural macros, [**type macros**](#type-macros))
-- fast (to program in *and* during runtime)
+## links
+
+- [the repl.it team](https://repl.it/@snowflakelang)
+- [the discord guild](https://discord.gg/rBbfDEr)
+- [the telegram group](https://t.me/joinchat/GwKOHRzeLzT2Jktw_4SeVg)
+- [the github organization](https://github.com/snowflake-language)
