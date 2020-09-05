@@ -109,15 +109,15 @@ chain of events.
   performance
 - add in tag typing (tagging applied to compound types)
 - add in macros
-- consider implementing dependent typing around this time (go down to #literature to see some
-  references/examples of what we're looking at)
+- consider implementing dependent typing around this time (go down to [literature](#literature) to
+  see some references/examples of what we're looking at)
 - consider implementing algebraic effects
 - look at adding in a distinction between purity / impurity & safe / unsafe, potentially done
   without a language feature using algebraic effects
-- implement a compiler backend using qbe (#literature)
+- implement a compiler backend using qbe (see [literature](#literature))
 - polish more of the core language, smoothing out rough edges and taking feedback
 - add a minimal standard library + core library and polish things
-- implement the event system (#the-event-system)
+- implement [the event system](#the-event-system)
 - selfhost and implement llvm post-selfhosting as well as port existing things depending on the
   rust impl
 - attempt to implement a jit
