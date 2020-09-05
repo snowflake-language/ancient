@@ -82,6 +82,58 @@ if you don't understand this, you can visualize it like how set theory is taught
 grade school: as a [venn diagram](https://en.wikipedia.org/wiki/Venn_diagram), where intersections
 are the overlapping parts of components, unions are two components combined, etc...
 
+## the event system
+
+the snowflake event system is a portion of the standard library that is designed to cleanly
+abstract over additional concurrency systems as well as provide a model for how to implement
+concurrency in a potential "snowflake os"
+
+it loosely works like this
+- program has a central definition of event datatypes and the event handlers that take them
+- program starts with a "genesis" event
+- event handlers respond to this
+- event handlers then emit new events (yes, they can emit multiple) (they can also emit nothing and
+  those chains die)
+- new event handlers respond to those
+- the cycle continues
+
+the idea behind it is that events are decoupled from their handlers and this would provide a more
+modular means of concurrency. it also avoids "coloring" functions because all handlers can be
+called like normal functions and can have their outputs chained to successive handlers in that
+chain of events.
+
+## a roadmap
+
+- implement a parser from scratch to improve error messages and make it less hacky
+- redo the interpreter to actually typecheck, then make it compile to bytecode for better
+  performance
+- add in tag typing (tagging applied to compound types)
+- add in macros
+- consider implementing dependent typing around this time (go down to #literature to see some
+  references/examples of what we're looking at)
+- consider implementing algebraic effects
+- look at adding in a distinction between purity / impurity & safe / unsafe, potentially done
+  without a language feature using algebraic effects
+- implement a compiler backend using qbe (#literature)
+- polish more of the core language, smoothing out rough edges and taking feedback
+- add a minimal standard library + core library and polish things
+- implement the event system (#the-event-system)
+- selfhost and implement llvm post-selfhosting as well as port existing things depending on the
+  rust impl
+- attempt to implement a jit
+- write a package manager
+
+## literature
+
+### compiler backends
+
+- [the qbe compiler backend](https://c9x.me/compile)
+
+### dependent typing
+
+- [formality](https://github.com/moonad/formality)
+- 
+
 ## examples
 
 ### hello world
