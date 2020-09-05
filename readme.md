@@ -132,7 +132,6 @@ chain of events.
 ### dependent typing
 
 - [formality](https://github.com/moonad/formality)
-- 
 
 ## examples
 
